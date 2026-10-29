@@ -26,6 +26,7 @@ import {
   Employee,
   AttendanceRecord,
   Payslip,
+  TeamMessage,
   OrderStage,
 } from '../types/erp';
 import {
@@ -42,6 +43,7 @@ import {
   INITIAL_EMPLOYEES,
   INITIAL_ATTENDANCE,
   INITIAL_PAYSLIPS,
+  INITIAL_TEAM_MESSAGES,
 } from './seedData';
 import { getStageLocation } from '../utils/erpLogic';
 
@@ -59,6 +61,7 @@ const KEYS = {
   EMPLOYEES: 'sportswear_erp_employees_v2',
   ATTENDANCE: 'sportswear_erp_attendance_v2',
   PAYSLIPS: 'sportswear_erp_payslips_v2',
+  MESSAGES: 'sportswear_erp_messages_v2',
 };
 
 function getLocal<T>(key: string, initial: T): T {
@@ -553,6 +556,51 @@ export class ErpStorageService {
   static async addExpense(expense: Expense): Promise<void> {
     const list = [expense, ...this.getLocalExpenses()];
     setLocal(KEYS.EXPENSES, list);
+  }
+
+  // ===================== TEAM CHAT MESSAGES =====================
+  static getLocalMessages(): TeamMessage[] {
+    return getLocal<TeamMessage[]>(KEYS.MESSAGES, INITIAL_TEAM_MESSAGES);
+  }
+
+  static subscribeMessages(onUpdate: (data: TeamMessage[]) => void): () => void {
+    onUpdate(this.getLocalMessages());
+    const handler = () => onUpdate(this.getLocalMessages());
+    window.addEventListener('sportswear_erp_sync', handler);
+
+    if (!auth.currentUser) {
+      return () => window.removeEventListener('sportswear_erp_sync', handler);
+    }
+
+    const unsub = onSnapshot(
+      collection(db, 'teamMessages'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list = snapshot.docs.map((d) => d.data() as TeamMessage);
+          list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          setLocal(KEYS.MESSAGES, list);
+          onUpdate(list);
+        }
+      },
+      (err) => console.warn('Firestore messages subscription fallback', err)
+    );
+
+    return () => {
+      window.removeEventListener('sportswear_erp_sync', handler);
+      unsub();
+    };
+  }
+
+  static async sendTeamMessage(msg: TeamMessage): Promise<void> {
+    const list = [...this.getLocalMessages(), msg];
+    setLocal(KEYS.MESSAGES, list);
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'teamMessages', msg.id), msg);
+      } catch (err) {
+        console.warn('Firestore send message failed', err);
+      }
+    }
   }
 
   // Seed to firestore helper

@@ -21,6 +21,7 @@ import {
   Sparkles,
   Download,
   Share2,
+  QrCode,
 } from 'lucide-react';
 import { calculateFabricConsumption, STAGE_ORDER } from '../utils/erpLogic';
 import confetti from 'canvas-confetti';
@@ -31,6 +32,7 @@ interface OrderModalProps {
   currentRole: UserRole;
   onUpdateOrder: (orderId: string, partial: Partial<Order>) => Promise<void>;
   onOpenRaiseShortage: (order: Order) => void;
+  onOpenQrBundleModal?: (order: Order) => void;
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({
@@ -39,6 +41,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   currentRole,
   onUpdateOrder,
   onOpenRaiseShortage,
+  onOpenQrBundleModal,
 }) => {
   if (!order) return null;
 
@@ -114,13 +117,25 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            aria-label="Close modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenQrBundleModal && (
+              <button
+                onClick={() => onOpenQrBundleModal(order)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Bundle QR Tag</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Manufacturing Progress Visualizer */}

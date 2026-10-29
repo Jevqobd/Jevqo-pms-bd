@@ -350,3 +350,44 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     description: 'Employee personal workstation: punch attendance, view assigned job cards, track payslips, report issues.',
   },
 };
+
+export type TeamChannelId =
+  | 'all-factory'
+  | 'sales-marketing'
+  | 'design-prepress'
+  | 'print-tongi'
+  | 'sewing-mirpur'
+  | 'urgent-shortages'
+  | 'management-board';
+
+export interface TeamChannel {
+  id: TeamChannelId;
+  name: string;
+  description: string;
+  icon: string;
+  departmentTag: string;
+}
+
+export interface TeamMessageAttachment {
+  type: 'image' | 'file' | 'audio';
+  name: string;
+  url: string;
+  size?: string;
+  durationSec?: number;
+}
+
+export interface TeamMessage {
+  id: string;
+  channelId: TeamChannelId;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  senderAvatar?: string;
+  content: string;
+  taggedEmployees?: string[];
+  taggedDepartments?: string[];
+  taggedOrders?: string[];
+  taggedInvoices?: string[];
+  attachment?: TeamMessageAttachment;
+  createdAt: string;
+}

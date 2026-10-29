@@ -32,6 +32,8 @@ import {
   Eye,
   X,
   Layers,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface AccountingModuleProps {
@@ -141,6 +143,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     setExpTitle('');
   };
 
+  // Permission flag: Owner and Accountant have full access; Marketing can access Invoices/Estimates and Record Client Payments
+  const isSensitiveAllowed = currentRole === 'owner' || currentRole === 'accountant';
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150 text-xs">
       {/* Banner */}
@@ -166,19 +171,24 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setIsRecordPaymentOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-emerald-800 font-bold text-xs shadow-md hover:bg-emerald-50 transition"
+            onClick={() => {
+              setPayPartyType('client');
+              setIsRecordPaymentOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-emerald-800 font-bold text-xs shadow-md hover:bg-emerald-50 transition cursor-pointer"
           >
             <CreditCard className="w-4 h-4" />
-            <span>+ Record Payment</span>
+            <span>{currentRole === 'marketing' ? '+ Record Client Payment' : '+ Record Payment'}</span>
           </button>
-          <button
-            onClick={() => setIsAddExpenseOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
-          >
-            <Receipt className="w-4 h-4" />
-            <span>+ Add Expense</span>
-          </button>
+          {isSensitiveAllowed && (
+            <button
+              onClick={() => setIsAddExpenseOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer"
+            >
+              <Receipt className="w-4 h-4" />
+              <span>+ Add Expense</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,6 +273,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         >
           <Building2 className="w-3.5 h-3.5" />
           <span>Client & Vendor Ledgers</span>
+          {!isSensitiveAllowed && <Lock className="w-3 h-3 text-amber-400 ml-0.5" />}
         </button>
 
         <button
@@ -287,6 +298,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         >
           <DollarSign className="w-3.5 h-3.5" />
           <span>Factory Expenses ({expenses.length})</span>
+          {!isSensitiveAllowed && <Lock className="w-3 h-3 text-amber-400 ml-0.5" />}
         </button>
 
         <button
@@ -299,6 +311,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         >
           <TrendingUp className="w-3.5 h-3.5" />
           <span>P&L Financial Audit</span>
+          {!isSensitiveAllowed && <Lock className="w-3 h-3 text-amber-400 ml-0.5" />}
         </button>
       </div>
 
@@ -712,22 +725,54 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
             <form onSubmit={handleSubmitPayment} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Payment Direction</label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setPayPartyType('client')}
-                    className={`py-1.5 rounded-lg font-bold text-xs ${payPartyType === 'client' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}
-                  >
-                    Client Payment (Inflow)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPayPartyType('vendor')}
-                    className={`py-1.5 rounded-lg font-bold text-xs ${payPartyType === 'vendor' ? 'bg-red-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}
-                  >
-                    Vendor Bill (Outflow)
-                  </button>
-                </div>
+                {isSensitiveAllowed ? (
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setPayPartyType('client')}
+                      className={`py-1.5 rounded-lg font-bold text-xs ${payPartyType === 'client' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}
+                    >
+                      Client Payment (Inflow)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayPartyType('vendor')}
+                      className={`py-1.5 rounded-lg font-bold text-xs ${payPartyType === 'vendor' ? 'bg-red-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}
+                    >
+                      Vendor Bill (Outflow)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mt-1 flex items-center justify-between">
+                    <span>Client Payment (Accounts Receivable Inflow)</span>
+                    <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded">Marketing Authorized</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Invoice Link Selector for Marketing or Accountant */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Select Associated Customer Invoice (Optional)
+                </label>
+                <select
+                  onChange={(e) => {
+                    const inv = invoices.find((i) => i.id === e.target.value);
+                    if (inv) {
+                      setPayPartyName(inv.customerName);
+                      setPayAmount(inv.dueAmount > 0 ? inv.dueAmount : inv.totalAmount);
+                      setPayRef(`INV-${inv.invoiceNumber}`);
+                    }
+                  }}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1"
+                >
+                  <option value="">-- Choose an open invoice or enter manually --</option>
+                  {invoices.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoiceNumber} • {inv.customerName} (Due: ${inv.dueAmount})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

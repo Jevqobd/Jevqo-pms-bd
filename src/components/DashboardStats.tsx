@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Order, ShortageTicket, FactoryLocation } from '../types/erp';
+import { Language } from '../utils/translations';
 import { Building2, Printer, Scissors, Truck, AlertOctagon, DollarSign, Clock } from 'lucide-react';
 
 interface DashboardStatsProps {
@@ -12,6 +13,7 @@ interface DashboardStatsProps {
   shortageTickets: ShortageTicket[];
   onSelectLocation: (loc: FactoryLocation | 'all') => void;
   selectedLocation: FactoryLocation | 'all';
+  language?: Language;
 }
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({
@@ -19,8 +21,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   shortageTickets,
   onSelectLocation,
   selectedLocation,
+  language = 'en',
 }) => {
-  const activeOrders = orders.filter((o) => o.stage !== 'delivered');
   const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
   const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
   const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
@@ -38,166 +40,176 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         {/* Head Office Card */}
         <div
           onClick={() => onSelectLocation(selectedLocation === 'head_office' ? 'all' : 'head_office')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`card-hover p-4 rounded-2xl border cursor-pointer transition-all ${
             selectedLocation === 'head_office'
-              ? 'ring-2 ring-blue-500 bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 shadow-sm'
-              : 'bg-white dark:bg-gray-850 border-gray-200 dark:border-gray-800 hover:border-blue-300'
+              ? 'ring-2 ring-blue-500 bg-blue-950/40 border-blue-600 shadow-lg'
+              : 'bg-slate-900/90 border-slate-800 hover:border-blue-500/50'
           }`}
         >
-          <div className="flex items-center justify-between text-blue-600 dark:text-blue-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Head Office</span>
+          <div className="flex items-center justify-between text-blue-400">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {language === 'bn' ? 'বনানী হেড অফিস' : 'Head Office'}
+            </span>
             <Building2 className="w-4 h-4" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-gray-900 dark:text-white">
+            <span className="text-2xl font-black text-white font-mono">
               {headOfficeOrders.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">orders</span>
+            <span className="text-xs text-slate-400">{language === 'bn' ? 'অর্ডার' : 'orders'}</span>
           </div>
-          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-            CRM, Payments & Pre-Press Patterns
+          <p className="mt-1 text-[11px] text-slate-400">
+            {language === 'bn' ? 'সেলস, একাউন্টস ও মকআপ' : 'CRM, Payments & Mockups'}
           </p>
         </div>
 
         {/* Print Factory Card */}
         <div
           onClick={() => onSelectLocation(selectedLocation === 'print_factory' ? 'all' : 'print_factory')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`card-hover p-4 rounded-2xl border cursor-pointer transition-all ${
             selectedLocation === 'print_factory'
-              ? 'ring-2 ring-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 shadow-sm'
-              : 'bg-white dark:bg-gray-850 border-gray-200 dark:border-gray-800 hover:border-emerald-300'
+              ? 'ring-2 ring-emerald-500 bg-emerald-950/40 border-emerald-600 shadow-lg'
+              : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/50'
           }`}
         >
-          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Print Factory</span>
+          <div className="flex items-center justify-between text-emerald-400">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {language === 'bn' ? 'টঙ্গী প্রিন্ট মিল' : 'Print Factory'}
+            </span>
             <Printer className="w-4 h-4" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-gray-900 dark:text-white">
+            <span className="text-2xl font-black text-white font-mono">
               {printFactoryOrders.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">in production</span>
+            <span className="text-xs text-slate-400">{language === 'bn' ? 'চলমান' : 'in production'}</span>
           </div>
-          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-            Paper Sublimation & Heat Press
+          <p className="mt-1 text-[11px] text-slate-400">
+            {language === 'bn' ? 'সাবলিমেশন পেপার ও ক্যালেন্ডার' : 'Paper Sublimation & Heat Press'}
           </p>
         </div>
 
         {/* In-Transit Shuttle Card */}
         <div
           onClick={() => onSelectLocation(selectedLocation === 'dispatched' ? 'all' : 'dispatched')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`card-hover p-4 rounded-2xl border cursor-pointer transition-all ${
             selectedLocation === 'dispatched'
-              ? 'ring-2 ring-amber-500 bg-amber-50/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 shadow-sm'
-              : 'bg-white dark:bg-gray-850 border-gray-200 dark:border-gray-800 hover:border-amber-300'
+              ? 'ring-2 ring-amber-500 bg-amber-950/40 border-amber-600 shadow-lg'
+              : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50'
           }`}
         >
-          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Inter-Factory Transit</span>
+          <div className="flex items-center justify-between text-amber-400">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {language === 'bn' ? 'কারখানা ভ্যান ট্রানজিট' : 'Inter-Factory Van'}
+            </span>
             <Truck className="w-4 h-4" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-gray-900 dark:text-white">
+            <span className="text-2xl font-black text-white font-mono">
               {dispatchedOrders.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">rolls on van</span>
+            <span className="text-xs text-slate-400">{language === 'bn' ? 'রোলে ট্রাকে' : 'rolls on van'}</span>
           </div>
-          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-            Printed Rolls en route to Sewing
+          <p className="mt-1 text-[11px] text-slate-400">
+            {language === 'bn' ? 'টঙ্গী থেকে মিরপুর চালান' : 'Printed Rolls en route to Sewing'}
           </p>
         </div>
 
         {/* Sewing Factory Card */}
         <div
           onClick={() => onSelectLocation(selectedLocation === 'sewing_factory' ? 'all' : 'sewing_factory')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+          className={`card-hover p-4 rounded-2xl border cursor-pointer transition-all ${
             selectedLocation === 'sewing_factory'
-              ? 'ring-2 ring-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 shadow-sm'
-              : 'bg-white dark:bg-gray-850 border-gray-200 dark:border-gray-800 hover:border-indigo-300'
+              ? 'ring-2 ring-indigo-500 bg-indigo-950/40 border-indigo-600 shadow-lg'
+              : 'bg-slate-900/90 border-slate-800 hover:border-indigo-500/50'
           }`}
         >
-          <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Sewing Factory</span>
+          <div className="flex items-center justify-between text-indigo-400">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {language === 'bn' ? 'মিরপুর সুইং কারখানা' : 'Sewing Factory'}
+            </span>
             <Scissors className="w-4 h-4" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-gray-900 dark:text-white">
+            <span className="text-2xl font-black text-white font-mono">
               {sewingFactoryOrders.length}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">at lines</span>
+            <span className="text-xs text-slate-400">{language === 'bn' ? 'লাইনে' : 'at lines'}</span>
           </div>
-          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-            Cutting, Assembly, Finishing & Dispatch
+          <p className="mt-1 text-[11px] text-slate-400">
+            {language === 'bn' ? 'কাটিং, সেলাই, ফিনিশিং ও ডিসপ্যাচ' : 'Cutting, Assembly, Packing & Dispatch'}
           </p>
         </div>
       </div>
 
       {/* Secondary Metrics Bar: Financials & Re-print Alerts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800">
+        <div className="card-hover flex items-center justify-between p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50">
+            <div className="p-2 rounded-xl bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
               <DollarSign className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                Total Pipeline Sales
+              <div className="text-[11px] font-semibold text-slate-400 uppercase">
+                {language === 'bn' ? 'মোট পাইপলাইন বিক্রয়' : 'Total Pipeline Sales'}
               </div>
-              <div className="text-base font-black text-gray-900 dark:text-white">
-                ${totalSales.toLocaleString()}
+              <div className="text-base font-black text-white font-mono">
+                ৳{totalSales.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
-            <span className="text-emerald-600 font-bold">${totalAdvances.toLocaleString()}</span>
-            <span className="text-gray-400 block text-[10px]">collected</span>
+            <span className="text-emerald-400 font-bold font-mono">৳{totalAdvances.toLocaleString()}</span>
+            <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'আদায়কৃত' : 'collected'}</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800">
+        <div className="card-hover flex items-center justify-between p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50">
+            <div className="p-2 rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/60">
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                Due Before Delivery
+              <div className="text-[11px] font-semibold text-slate-400 uppercase">
+                {language === 'bn' ? 'বকেয়া পাওনা' : 'Due Before Delivery'}
               </div>
-              <div className="text-base font-black text-gray-900 dark:text-white">
-                ${totalDue.toLocaleString()}
+              <div className="text-base font-black text-white font-mono">
+                ৳{totalDue.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
-            <span className="text-amber-600 font-bold">
+            <span className="text-amber-400 font-bold font-mono">
               {Math.round((totalAdvances / (totalSales || 1)) * 100)}%
             </span>
-            <span className="text-gray-400 block text-[10px]">paid ratio</span>
+            <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'আদায় হার' : 'paid ratio'}</span>
           </div>
         </div>
 
-        <div className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+        <div className={`card-hover flex items-center justify-between p-3.5 rounded-2xl border shadow-lg transition-all ${
           openShortages.length > 0
-            ? 'bg-red-50/60 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200'
-            : 'bg-white dark:bg-gray-850 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
+            ? 'bg-rose-950/30 border-rose-800 text-rose-200'
+            : 'bg-slate-900/90 border-slate-800 text-slate-300'
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              openShortages.length > 0 ? 'bg-red-100 text-red-600 dark:bg-red-900' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'
+            <div className={`p-2 rounded-xl ${
+              openShortages.length > 0 ? 'bg-rose-900/60 text-rose-400 border border-rose-700' : 'bg-slate-800 text-slate-400'
             }`}>
               <AlertOctagon className="w-4 h-4" />
             </div>
             <div>
               <div className="text-[11px] font-semibold uppercase">
-                Active Re-print Loop
+                {language === 'bn' ? 'সক্রিয় রি-প্রিন্ট লুপ' : 'Active Re-print Loop'}
               </div>
-              <div className="text-base font-black">
-                {openShortages.length} Shortage Ticket{openShortages.length !== 1 ? 's' : ''}
+              <div className="text-base font-black font-mono">
+                {openShortages.length} {language === 'bn' ? 'টি শর্টেজ টিকিট' : `Shortage Ticket${openShortages.length !== 1 ? 's' : ''}`}
               </div>
             </div>
           </div>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-white/70 dark:bg-gray-800 border">
-            {openShortages.length > 0 ? 'Priority Alert' : 'No defects'}
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${
+            openShortages.length > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
+          }`}>
+            {openShortages.length > 0 ? (language === 'bn' ? 'জরুরি অ্যালার্ট' : 'Priority Alert') : (language === 'bn' ? 'ত্রুটি নেই' : 'No defects')}
           </span>
         </div>
       </div>
