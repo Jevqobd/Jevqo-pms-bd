@@ -1,0 +1,6 @@
+{
+  "name": "Sportswear Multi-Factory Cloud ERP",
+  "description": "Centralized cloud ERP for sportswear manufacturing across Head Office, Print Factory, and Sewing Factory with live Job Cards, shortage tickets, and role-based tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

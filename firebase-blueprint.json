@@ -1,0 +1,164 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role and location assignment in the sportswear ERP system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "marketing", "design_mockup", "design_pattern", "print_factory", "sewing_factory"]
+        },
+        "location": {
+          "type": "string",
+          "enum": ["head_office", "print_factory", "sewing_factory"]
+        },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email", "role", "location"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Central Job Card tracking a sportswear order across all 3 manufacturing locations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "orderNumber": { "type": "string", "maxLength": 32 },
+        "clientName": { "type": "string", "maxLength": 128 },
+        "clientPhone": { "type": "string", "maxLength": 32 },
+        "teamOrClub": { "type": "string", "maxLength": 128 },
+        "fabricType": { "type": "string", "maxLength": 64 },
+        "gsm": { "type": "number" },
+        "totalQuantity": { "type": "number" },
+        "sizeBreakdown": { "type": "string", "maxLength": 2048 },
+        "roster": { "type": "string", "maxLength": 8192 },
+        "totalAmount": { "type": "number" },
+        "advanceAmount": { "type": "number" },
+        "dueAmount": { "type": "number" },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["pending", "verified", "paid_in_full"]
+        },
+        "paymentReference": { "type": "string", "maxLength": 128 },
+        "paymentProofUrl": { "type": "string", "maxLength": 1024 },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "payment_pending",
+            "payment_verified",
+            "mockup_in_progress",
+            "mockup_approved",
+            "pattern_spec_ready",
+            "paper_printed",
+            "heat_press_done",
+            "fabric_dispatched",
+            "fabric_received",
+            "cutting_sewing",
+            "quality_finishing",
+            "shipped",
+            "delivered"
+          ]
+        },
+        "currentLocation": {
+          "type": "string",
+          "enum": ["head_office", "print_factory", "sewing_factory", "dispatched"]
+        },
+        "mockupUrl": { "type": "string", "maxLength": 1024 },
+        "mockupNotes": { "type": "string", "maxLength": 2048 },
+        "printReadyLink": { "type": "string", "maxLength": 1024 },
+        "patternSpecSheet": { "type": "string", "maxLength": 2048 },
+        "courierName": { "type": "string", "maxLength": 128 },
+        "trackingNumber": { "type": "string", "maxLength": 128 },
+        "deliveryAddress": { "type": "string", "maxLength": 512 },
+        "hasShortage": { "type": "string", "maxLength": 8 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "orderNumber", "clientName", "totalQuantity", "stage", "currentLocation"]
+    },
+    "ShortageTicket": {
+      "title": "ShortageTicket",
+      "description": "Urgent reprint ticket raised by sewing factory for burnt/damaged/missing panels",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "orderId": { "type": "string", "maxLength": 64 },
+        "orderNumber": { "type": "string", "maxLength": 32 },
+        "teamOrClub": { "type": "string", "maxLength": 128 },
+        "partDamaged": { "type": "string", "maxLength": 128 },
+        "size": { "type": "string", "maxLength": 16 },
+        "playerDetails": { "type": "string", "maxLength": 256 },
+        "quantity": { "type": "number" },
+        "reason": { "type": "string", "maxLength": 256 },
+        "status": {
+          "type": "string",
+          "enum": ["open", "reprint_file_ready", "reprinted", "dispatched_to_sewing", "resolved"]
+        },
+        "urgentPrintLink": { "type": "string", "maxLength": 1024 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "orderId", "orderNumber", "partDamaged", "size", "quantity", "status"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Raw material stock item for printing and sewing factories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "enum": ["fabric", "ink", "paper", "packaging", "thread"] },
+        "location": { "type": "string", "enum": ["print_factory", "sewing_factory", "head_office"] },
+        "currentStock": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 32 },
+        "minimumThreshold": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "category", "location", "currentStock", "unit", "minimumThreshold"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Operational factory and office expense record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "location": { "type": "string", "enum": ["head_office", "print_factory", "sewing_factory"] },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 64 },
+        "recordedBy": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 512 }
+      },
+      "required": ["id", "title", "location", "amount", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and ERP role assignments"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Job Cards representing sportswear manufacturing orders"
+    },
+    "/shortageTickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/ShortageTicket" },
+      "description": "High-priority reprint tickets for rejected garments"
+    },
+    "/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Raw materials and factory stock levels"
+    },
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Operating expenses across the three locations"
+    }
+  }
+}

@@ -1,0 +1,572 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+import { db, auth } from '../firebase/config';
+import {
+  Order,
+  ShortageTicket,
+  InventoryItem,
+  Expense,
+  Customer,
+  Estimate,
+  Invoice,
+  Vendor,
+  LedgerEntry,
+  PaymentRecord,
+  Employee,
+  AttendanceRecord,
+  Payslip,
+  OrderStage,
+} from '../types/erp';
+import {
+  INITIAL_ORDERS,
+  INITIAL_SHORTAGE_TICKETS,
+  INITIAL_INVENTORY,
+  INITIAL_EXPENSES,
+  INITIAL_CUSTOMERS,
+  INITIAL_ESTIMATES,
+  INITIAL_INVOICES,
+  INITIAL_VENDORS,
+  INITIAL_LEDGER_ENTRIES,
+  INITIAL_PAYMENT_RECORDS,
+  INITIAL_EMPLOYEES,
+  INITIAL_ATTENDANCE,
+  INITIAL_PAYSLIPS,
+} from './seedData';
+import { getStageLocation } from '../utils/erpLogic';
+
+const KEYS = {
+  ORDERS: 'sportswear_erp_orders_v2',
+  SHORTAGES: 'sportswear_erp_shortages_v2',
+  INVENTORY: 'sportswear_erp_inventory_v2',
+  EXPENSES: 'sportswear_erp_expenses_v2',
+  CUSTOMERS: 'sportswear_erp_customers_v2',
+  ESTIMATES: 'sportswear_erp_estimates_v2',
+  INVOICES: 'sportswear_erp_invoices_v2',
+  VENDORS: 'sportswear_erp_vendors_v2',
+  LEDGER: 'sportswear_erp_ledger_v2',
+  PAYMENTS: 'sportswear_erp_payments_v2',
+  EMPLOYEES: 'sportswear_erp_employees_v2',
+  ATTENDANCE: 'sportswear_erp_attendance_v2',
+  PAYSLIPS: 'sportswear_erp_payslips_v2',
+};
+
+function getLocal<T>(key: string, initial: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error(`Error reading ${key}`, e);
+  }
+  return initial;
+}
+
+function setLocal<T>(key: string, val: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+    window.dispatchEvent(new Event('sportswear_erp_sync'));
+  } catch (e) {
+    console.error(`Error writing ${key}`, e);
+  }
+}
+
+export class ErpStorageService {
+  // ===================== ORDERS =====================
+  static getLocalOrders(): Order[] {
+    return getLocal<Order[]>(KEYS.ORDERS, INITIAL_ORDERS);
+  }
+
+  static subscribeOrders(onUpdate: (data: Order[]) => void): () => void {
+    onUpdate(this.getLocalOrders());
+    const handler = () => onUpdate(this.getLocalOrders());
+    window.addEventListener('sportswear_erp_sync', handler);
+
+    if (!auth.currentUser) {
+      return () => window.removeEventListener('sportswear_erp_sync', handler);
+    }
+
+    const unsub = onSnapshot(
+      collection(db, 'orders'),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list = snapshot.docs.map((d) => ({ ...(d.data() as Order), id: d.id }));
+          setLocal(KEYS.ORDERS, list);
+          onUpdate(list);
+        } else {
+          this.seedAllToFirestore();
+        }
+      },
+      (err) => {
+        console.warn('Orders firestore note:', err.message);
+        onUpdate(this.getLocalOrders());
+      }
+    );
+
+    return () => {
+      window.removeEventListener('sportswear_erp_sync', handler);
+      unsub();
+    };
+  }
+
+  static async createOrder(order: Order): Promise<void> {
+    const current = this.getLocalOrders();
+    const updated = [order, ...current];
+    setLocal(KEYS.ORDERS, updated);
+
+    // Also auto-generate an initial Invoice for this order
+    const inv: Invoice = {
+      id: `inv-${order.orderNumber.toLowerCase()}`,
+      invoiceNumber: `INV-${order.orderNumber.replace('SW-', '')}`,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerId: `cust-${order.clientName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      customerName: order.clientName,
+      type: order.orderType,
+      totalAmount: order.totalAmount,
+      paidAmount: order.advanceAmount,
+      dueAmount: order.dueAmount,
+      status: order.dueAmount === 0 ? 'paid' : order.advanceAmount > 0 ? 'partially_paid' : 'issued',
+      dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      paymentTerms: '50% advance, balance on delivery',
+      createdAt: new Date().toISOString(),
+    };
+    await this.createInvoice(inv);
+
+    // Also record in Client Ledger
+    await this.addLedgerEntry({
+      id: `led-${Date.now()}-inv`,
+      entityType: 'client',
+      entityId: inv.customerId,
+      entityName: order.clientName,
+      date: new Date().toISOString().split('T')[0],
+      referenceType: 'invoice',
+      referenceId: inv.invoiceNumber,
+      description: `Order ${order.orderNumber} - ${order.teamOrClub || 'Custom Team Kit'} (${order.totalQuantity} pcs)`,
+      debit: order.totalAmount,
+      credit: 0,
+      runningBalance: order.totalAmount,
+    });
+
+    if (order.advanceAmount > 0) {
+      await this.recordPayment({
+        id: `pay-${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        type: 'received_from_client',
+        partyType: 'client',
+        partyId: inv.customerId,
+        partyName: order.clientName,
+        amount: order.advanceAmount,
+        method: order.paymentReference?.includes('BKASH') ? 'bkash_nagad' : 'bank_transfer',
+        transactionRef: order.paymentReference || 'ADV-DEP',
+        invoiceOrBillRef: inv.invoiceNumber,
+        notes: 'Advance deposit on order placement',
+        verifiedBy: 'Marketing & Accounts',
+      });
+    }
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'orders', order.id), order);
+      } catch (e) {
+        console.warn('Firestore write fallback', e);
+      }
+    }
+  }
+
+  static async updateOrder(orderId: string, partial: Partial<Order>): Promise<void> {
+    const current = this.getLocalOrders();
+    const idx = current.findIndex((o) => o.id === orderId);
+    if (idx === -1) return;
+
+    const existing = current[idx];
+    const newStage = partial.stage || existing.stage;
+    const newLocation = getStageLocation(newStage);
+
+    const merged: Order = {
+      ...existing,
+      ...partial,
+      stage: newStage,
+      currentLocation: newLocation,
+      updatedAt: new Date().toISOString(),
+    };
+
+    current[idx] = merged;
+    setLocal(KEYS.ORDERS, [...current]);
+
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'orders', orderId), partial);
+      } catch (e) {
+        console.warn('Firestore update fallback', e);
+      }
+    }
+  }
+
+  // ===================== SHORTAGES =====================
+  static getLocalShortages(): ShortageTicket[] {
+    return getLocal<ShortageTicket[]>(KEYS.SHORTAGES, INITIAL_SHORTAGE_TICKETS);
+  }
+
+  static subscribeShortages(onUpdate: (data: ShortageTicket[]) => void): () => void {
+    onUpdate(this.getLocalShortages());
+    const handler = () => onUpdate(this.getLocalShortages());
+    window.addEventListener('sportswear_erp_sync', handler);
+
+    if (!auth.currentUser) {
+      return () => window.removeEventListener('sportswear_erp_sync', handler);
+    }
+
+    const unsub = onSnapshot(collection(db, 'shortageTickets'), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map((d) => ({ ...(d.data() as ShortageTicket), id: d.id }));
+        setLocal(KEYS.SHORTAGES, list);
+        onUpdate(list);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('sportswear_erp_sync', handler);
+      unsub();
+    };
+  }
+
+  static async raiseShortageTicket(ticket: ShortageTicket): Promise<void> {
+    const list = [ticket, ...this.getLocalShortages()];
+    setLocal(KEYS.SHORTAGES, list);
+    await this.updateOrder(ticket.orderId, { hasShortage: 'yes' });
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'shortageTickets', ticket.id), ticket);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }
+
+  static async updateShortageTicket(ticketId: string, partial: Partial<ShortageTicket>): Promise<void> {
+    const list = this.getLocalShortages();
+    const idx = list.findIndex((t) => t.id === ticketId);
+    if (idx === -1) return;
+
+    list[idx] = { ...list[idx], ...partial };
+    setLocal(KEYS.SHORTAGES, [...list]);
+
+    if (partial.status === 'resolved') {
+      const remainingOpen = list.filter((t) => t.orderId === list[idx].orderId && t.status !== 'resolved');
+      if (remainingOpen.length === 0) {
+        await this.updateOrder(list[idx].orderId, { hasShortage: 'no' });
+      }
+    }
+
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'shortageTickets', ticketId), partial);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }
+
+  // ===================== CUSTOMERS / CRM =====================
+  static getLocalCustomers(): Customer[] {
+    return getLocal<Customer[]>(KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
+  }
+
+  static subscribeCustomers(onUpdate: (data: Customer[]) => void): () => void {
+    onUpdate(this.getLocalCustomers());
+    const handler = () => onUpdate(this.getLocalCustomers());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createCustomer(customer: Customer): Promise<void> {
+    const list = [customer, ...this.getLocalCustomers()];
+    setLocal(KEYS.CUSTOMERS, list);
+  }
+
+  // ===================== ESTIMATES / QUOTATIONS =====================
+  static getLocalEstimates(): Estimate[] {
+    return getLocal<Estimate[]>(KEYS.ESTIMATES, INITIAL_ESTIMATES);
+  }
+
+  static subscribeEstimates(onUpdate: (data: Estimate[]) => void): () => void {
+    onUpdate(this.getLocalEstimates());
+    const handler = () => onUpdate(this.getLocalEstimates());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createEstimate(estimate: Estimate): Promise<void> {
+    const list = [estimate, ...this.getLocalEstimates()];
+    setLocal(KEYS.ESTIMATES, list);
+  }
+
+  static async updateEstimate(id: string, partial: Partial<Estimate>): Promise<void> {
+    const list = this.getLocalEstimates();
+    const idx = list.findIndex((e) => e.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.ESTIMATES, [...list]);
+    }
+  }
+
+  // ===================== INVOICES =====================
+  static getLocalInvoices(): Invoice[] {
+    return getLocal<Invoice[]>(KEYS.INVOICES, INITIAL_INVOICES);
+  }
+
+  static subscribeInvoices(onUpdate: (data: Invoice[]) => void): () => void {
+    onUpdate(this.getLocalInvoices());
+    const handler = () => onUpdate(this.getLocalInvoices());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createInvoice(invoice: Invoice): Promise<void> {
+    const list = [invoice, ...this.getLocalInvoices()];
+    setLocal(KEYS.INVOICES, list);
+  }
+
+  static async updateInvoice(id: string, partial: Partial<Invoice>): Promise<void> {
+    const list = this.getLocalInvoices();
+    const idx = list.findIndex((i) => i.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.INVOICES, [...list]);
+    }
+  }
+
+  // ===================== VENDORS =====================
+  static getLocalVendors(): Vendor[] {
+    return getLocal<Vendor[]>(KEYS.VENDORS, INITIAL_VENDORS);
+  }
+
+  static subscribeVendors(onUpdate: (data: Vendor[]) => void): () => void {
+    onUpdate(this.getLocalVendors());
+    const handler = () => onUpdate(this.getLocalVendors());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createVendor(vendor: Vendor): Promise<void> {
+    const list = [vendor, ...this.getLocalVendors()];
+    setLocal(KEYS.VENDORS, list);
+  }
+
+  static async updateVendor(id: string, partial: Partial<Vendor>): Promise<void> {
+    const list = this.getLocalVendors();
+    const idx = list.findIndex((v) => v.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.VENDORS, [...list]);
+    }
+  }
+
+  // ===================== LEDGER (CLIENT & VENDOR) =====================
+  static getLocalLedger(): LedgerEntry[] {
+    return getLocal<LedgerEntry[]>(KEYS.LEDGER, INITIAL_LEDGER_ENTRIES);
+  }
+
+  static subscribeLedger(onUpdate: (data: LedgerEntry[]) => void): () => void {
+    onUpdate(this.getLocalLedger());
+    const handler = () => onUpdate(this.getLocalLedger());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async addLedgerEntry(entry: LedgerEntry): Promise<void> {
+    const list = [entry, ...this.getLocalLedger()];
+    setLocal(KEYS.LEDGER, list);
+  }
+
+  // ===================== PAYMENT RECORDS =====================
+  static getLocalPayments(): PaymentRecord[] {
+    return getLocal<PaymentRecord[]>(KEYS.PAYMENTS, INITIAL_PAYMENT_RECORDS);
+  }
+
+  static subscribePayments(onUpdate: (data: PaymentRecord[]) => void): () => void {
+    onUpdate(this.getLocalPayments());
+    const handler = () => onUpdate(this.getLocalPayments());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async recordPayment(payment: PaymentRecord): Promise<void> {
+    const list = [payment, ...this.getLocalPayments()];
+    setLocal(KEYS.PAYMENTS, list);
+
+    // Also post matching credit/debit to the Ledger
+    await this.addLedgerEntry({
+      id: `led-pay-${payment.id}`,
+      entityType: payment.partyType,
+      entityId: payment.partyId,
+      entityName: payment.partyName,
+      date: payment.date,
+      referenceType: 'payment',
+      referenceId: payment.transactionRef,
+      description: `${payment.type === 'received_from_client' ? 'Payment received' : 'Payment made to vendor'} via ${payment.method} (${payment.notes || ''})`,
+      debit: payment.type === 'paid_to_vendor' ? payment.amount : 0,
+      credit: payment.type === 'received_from_client' ? payment.amount : 0,
+      runningBalance: 0,
+    });
+  }
+
+  // ===================== EMPLOYEES & HR =====================
+  static getLocalEmployees(): Employee[] {
+    return getLocal<Employee[]>(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
+  }
+
+  static subscribeEmployees(onUpdate: (data: Employee[]) => void): () => void {
+    onUpdate(this.getLocalEmployees());
+    const handler = () => onUpdate(this.getLocalEmployees());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createEmployee(emp: Employee): Promise<void> {
+    const list = [emp, ...this.getLocalEmployees()];
+    setLocal(KEYS.EMPLOYEES, list);
+  }
+
+  static async updateEmployee(id: string, partial: Partial<Employee>): Promise<void> {
+    const list = this.getLocalEmployees();
+    const idx = list.findIndex((e) => e.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.EMPLOYEES, [...list]);
+    }
+  }
+
+  // ===================== ATTENDANCE =====================
+  static getLocalAttendance(): AttendanceRecord[] {
+    return getLocal<AttendanceRecord[]>(KEYS.ATTENDANCE, INITIAL_ATTENDANCE);
+  }
+
+  static subscribeAttendance(onUpdate: (data: AttendanceRecord[]) => void): () => void {
+    onUpdate(this.getLocalAttendance());
+    const handler = () => onUpdate(this.getLocalAttendance());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async punchAttendance(record: AttendanceRecord): Promise<void> {
+    const list = this.getLocalAttendance();
+    const existingIndex = list.findIndex(
+      (a) => a.employeeId === record.employeeId && a.date === record.date
+    );
+
+    if (existingIndex !== -1) {
+      list[existingIndex] = { ...list[existingIndex], ...record };
+      setLocal(KEYS.ATTENDANCE, [...list]);
+    } else {
+      setLocal(KEYS.ATTENDANCE, [record, ...list]);
+    }
+  }
+
+  // ===================== PAYROLL & PAYSLIPS =====================
+  static getLocalPayslips(): Payslip[] {
+    return getLocal<Payslip[]>(KEYS.PAYSLIPS, INITIAL_PAYSLIPS);
+  }
+
+  static subscribePayslips(onUpdate: (data: Payslip[]) => void): () => void {
+    onUpdate(this.getLocalPayslips());
+    const handler = () => onUpdate(this.getLocalPayslips());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createPayslip(slip: Payslip): Promise<void> {
+    const list = [slip, ...this.getLocalPayslips()];
+    setLocal(KEYS.PAYSLIPS, list);
+  }
+
+  static async disburseSalary(slipId: string, paymentMethod: string): Promise<void> {
+    const list = this.getLocalPayslips();
+    const idx = list.findIndex((p) => p.id === slipId);
+    if (idx === -1) return;
+
+    list[idx] = {
+      ...list[idx],
+      status: 'disbursed',
+      paymentDate: new Date().toISOString().split('T')[0],
+      paymentMethod,
+    };
+    setLocal(KEYS.PAYSLIPS, [...list]);
+
+    // Automatically record an Expense for Salary Payout
+    await this.addExpense({
+      id: `exp-sal-${Date.now()}`,
+      title: `Salary Disbursement: ${list[idx].employeeName} (${list[idx].month})`,
+      category: 'Payroll',
+      location: 'head_office',
+      amount: list[idx].netSalary,
+      date: new Date().toISOString().split('T')[0],
+      recordedBy: 'HR & Accounts Manager',
+      notes: `Disbursed via ${paymentMethod}. Net amount: BDT/USD ${list[idx].netSalary}`,
+    });
+  }
+
+  // ===================== INVENTORY =====================
+  static getLocalInventory(): InventoryItem[] {
+    return getLocal<InventoryItem[]>(KEYS.INVENTORY, INITIAL_INVENTORY);
+  }
+
+  static subscribeInventory(onUpdate: (data: InventoryItem[]) => void): () => void {
+    onUpdate(this.getLocalInventory());
+    const handler = () => onUpdate(this.getLocalInventory());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async updateInventoryStock(itemId: string, newStock: number): Promise<void> {
+    const list = this.getLocalInventory();
+    const idx = list.findIndex((i) => i.id === itemId);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], currentStock: newStock, updatedAt: new Date().toISOString() };
+      setLocal(KEYS.INVENTORY, [...list]);
+    }
+  }
+
+  // ===================== EXPENSES =====================
+  static getLocalExpenses(): Expense[] {
+    return getLocal<Expense[]>(KEYS.EXPENSES, INITIAL_EXPENSES);
+  }
+
+  static subscribeExpenses(onUpdate: (data: Expense[]) => void): () => void {
+    onUpdate(this.getLocalExpenses());
+    const handler = () => onUpdate(this.getLocalExpenses());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async addExpense(expense: Expense): Promise<void> {
+    const list = [expense, ...this.getLocalExpenses()];
+    setLocal(KEYS.EXPENSES, list);
+  }
+
+  // Seed to firestore helper
+  static async seedAllToFirestore(): Promise<void> {
+    if (!auth.currentUser) return;
+    try {
+      for (const ord of INITIAL_ORDERS) {
+        await setDoc(doc(db, 'orders', ord.id), ord);
+      }
+      for (const sht of INITIAL_SHORTAGE_TICKETS) {
+        await setDoc(doc(db, 'shortageTickets', sht.id), sht);
+      }
+    } catch (e) {
+      console.warn('Firestore bulk seed fallback', e);
+    }
+  }
+}

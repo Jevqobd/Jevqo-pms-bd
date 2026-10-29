@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'ridwearbd@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validations
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'location']) &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 128 &&
+             data.role in ['owner', 'marketing', 'design_mockup', 'design_pattern', 'print_factory', 'sewing_factory'] &&
+             data.location in ['head_office', 'print_factory', 'sewing_factory'];
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'orderNumber', 'clientName', 'totalQuantity', 'stage', 'currentLocation']) &&
+             data.id is string && data.id.size() <= 64 &&
+             data.orderNumber is string && data.orderNumber.size() <= 32 &&
+             data.clientName is string && data.clientName.size() <= 128 &&
+             data.totalQuantity is number && data.totalQuantity >= 0 &&
+             data.stage is string && data.stage.size() <= 64 &&
+             data.currentLocation is string && data.currentLocation.size() <= 64;
+    }
+
+    function isValidShortageTicket(data) {
+      return data.keys().hasAll(['id', 'orderId', 'orderNumber', 'partDamaged', 'size', 'quantity', 'status']) &&
+             data.id is string && data.id.size() <= 64 &&
+             data.orderId is string && data.orderId.size() <= 64 &&
+             data.orderNumber is string && data.orderNumber.size() <= 32 &&
+             data.partDamaged is string && data.partDamaged.size() <= 128 &&
+             data.size is string && data.size.size() <= 16 &&
+             data.quantity is number && data.quantity > 0 &&
+             data.status in ['open', 'reprint_file_ready', 'reprinted', 'dispatched_to_sewing', 'resolved'];
+    }
+
+    function isValidInventory(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'location', 'currentStock', 'unit', 'minimumThreshold']) &&
+             data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.category in ['fabric', 'ink', 'paper', 'packaging', 'thread'] &&
+             data.location in ['print_factory', 'sewing_factory', 'head_office'] &&
+             data.currentStock is number &&
+             data.unit is string && data.unit.size() <= 32 &&
+             data.minimumThreshold is number;
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['id', 'title', 'location', 'amount', 'date']) &&
+             data.id is string && data.id.size() <= 64 &&
+             data.title is string && data.title.size() <= 128 &&
+             data.location in ['head_office', 'print_factory', 'sewing_factory'] &&
+             data.amount is number &&
+             data.date is string && data.date.size() <= 64;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isBootstrappedAdmin());
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isBootstrappedAdmin()) && isValidUser(incoming());
+      allow delete: if isBootstrappedAdmin();
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      allow update: if isSignedIn() && isValidOrder(incoming());
+      allow delete: if isBootstrappedAdmin();
+    }
+
+    // Shortage Tickets Collection
+    match /shortageTickets/{ticketId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidShortageTicket(incoming());
+      allow update: if isSignedIn() && isValidShortageTicket(incoming());
+      allow delete: if isBootstrappedAdmin();
+    }
+
+    // Inventory Collection
+    match /inventory/{itemId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidInventory(incoming());
+      allow delete: if isBootstrappedAdmin();
+    }
+
+    // Expenses Collection
+    match /expenses/{expenseId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidExpense(incoming());
+      allow delete: if isBootstrappedAdmin();
+    }
+
+    // Connection test doc
+    match /test/{docId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
