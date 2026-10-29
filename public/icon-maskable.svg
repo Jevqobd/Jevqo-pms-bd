@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="mBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <linearGradient id="mJersey" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+  </defs>
+  <!-- Full Bleed Background for Maskable Icon -->
+  <rect width="512" height="512" fill="url(#mBg)" />
+  
+  <!-- Scaled Safe Zone Content (80%) -->
+  <g transform="translate(256, 256) scale(0.6) translate(-256, -256)">
+    <path d="M170 120 L210 160 C235 175 277 175 302 160 L342 120 L420 180 L370 240 L340 220 L340 430 C340 445 328 456 312 456 L200 456 C184 456 172 445 172 430 L172 220 L142 240 L92 180 Z" 
+          fill="url(#mJersey)" 
+          stroke="#34d399" 
+          stroke-width="12" 
+          stroke-linejoin="round" />
+    <path d="M210 160 C235 185 277 185 302 160" fill="none" stroke="#f8fafc" stroke-width="14" stroke-linecap="round" />
+    <text x="256" y="325" font-family="monospace, sans-serif" font-weight="900" font-size="88" fill="#ffffff" text-anchor="middle">10</text>
+  </g>
+</svg>

@@ -28,6 +28,9 @@ import {
   Payslip,
   TeamMessage,
   OrderStage,
+  BankAccount,
+  CompanySettings,
+  DailyFactoryOutput,
 } from '../types/erp';
 import {
   INITIAL_ORDERS,
@@ -44,6 +47,9 @@ import {
   INITIAL_ATTENDANCE,
   INITIAL_PAYSLIPS,
   INITIAL_TEAM_MESSAGES,
+  INITIAL_BANK_ACCOUNTS,
+  INITIAL_SETTINGS,
+  INITIAL_PRODUCTIVITY_DATA,
 } from './seedData';
 import { getStageLocation } from '../utils/erpLogic';
 
@@ -62,6 +68,9 @@ const KEYS = {
   ATTENDANCE: 'sportswear_erp_attendance_v2',
   PAYSLIPS: 'sportswear_erp_payslips_v2',
   MESSAGES: 'sportswear_erp_messages_v2',
+  BANKS: 'sportswear_erp_banks_v2',
+  SETTINGS: 'sportswear_erp_settings_v2',
+  PRODUCTIVITY: 'sportswear_erp_productivity_v2',
 };
 
 function getLocal<T>(key: string, initial: T): T {
@@ -601,6 +610,91 @@ export class ErpStorageService {
         console.warn('Firestore send message failed', err);
       }
     }
+  }
+
+  // ===================== BANK ACCOUNTS =====================
+  static getLocalBankAccounts(): BankAccount[] {
+    return getLocal<BankAccount[]>(KEYS.BANKS, INITIAL_BANK_ACCOUNTS);
+  }
+
+  static subscribeBankAccounts(onUpdate: (data: BankAccount[]) => void): () => void {
+    onUpdate(this.getLocalBankAccounts());
+    const handler = () => onUpdate(this.getLocalBankAccounts());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async addBankAccount(bank: BankAccount): Promise<void> {
+    const list = [...this.getLocalBankAccounts(), bank];
+    setLocal(KEYS.BANKS, list);
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'bankAccounts', bank.id), bank);
+      } catch (err) {
+        console.warn('Firestore bank account save fallback', err);
+      }
+    }
+  }
+
+  static async updateBankAccount(id: string, updates: Partial<BankAccount>): Promise<void> {
+    const list = this.getLocalBankAccounts().map((b) => (b.id === id ? { ...b, ...updates } : b));
+    setLocal(KEYS.BANKS, list);
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'bankAccounts', id), updates);
+      } catch (err) {
+        console.warn('Firestore bank account update fallback', err);
+      }
+    }
+  }
+
+  // ===================== COMPANY SETTINGS =====================
+  static getLocalSettings(): CompanySettings {
+    return getLocal<CompanySettings>(KEYS.SETTINGS, INITIAL_SETTINGS);
+  }
+
+  static subscribeSettings(onUpdate: (data: CompanySettings) => void): () => void {
+    onUpdate(this.getLocalSettings());
+    const handler = () => onUpdate(this.getLocalSettings());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async updateSettings(updates: Partial<CompanySettings>): Promise<void> {
+    const current = this.getLocalSettings();
+    const updated = { ...current, ...updates };
+    setLocal(KEYS.SETTINGS, updated);
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'settings', 'company'), updated);
+      } catch (err) {
+        console.warn('Firestore settings update fallback', err);
+      }
+    }
+  }
+
+  // ===================== PRODUCTIVITY & DAILY OUTPUT =====================
+  static getLocalProductivity(): DailyFactoryOutput[] {
+    return getLocal<DailyFactoryOutput[]>(KEYS.PRODUCTIVITY, INITIAL_PRODUCTIVITY_DATA);
+  }
+
+  static subscribeProductivity(onUpdate: (data: DailyFactoryOutput[]) => void): () => void {
+    onUpdate(this.getLocalProductivity());
+    const handler = () => onUpdate(this.getLocalProductivity());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async updateDailyProductivity(record: DailyFactoryOutput): Promise<void> {
+    const list = this.getLocalProductivity();
+    const idx = list.findIndex((item) => item.date === record.date);
+    let nextList: DailyFactoryOutput[];
+    if (idx >= 0) {
+      nextList = list.map((item, i) => (i === idx ? record : item));
+    } else {
+      nextList = [...list, record];
+    }
+    setLocal(KEYS.PRODUCTIVITY, nextList);
   }
 
   // Seed to firestore helper

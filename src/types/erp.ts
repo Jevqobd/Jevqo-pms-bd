@@ -9,6 +9,24 @@ export type { UserRole, FactoryLocation, OrderStage, SizeBreakdown, PlayerRoster
 
 export type BusinessType = 'b2b' | 'b2c';
 
+export interface OrderShortsSpec {
+  enabled: boolean;
+  quantity: number;
+  sizeBreakdown: SizeBreakdown;
+  hasInnerLiner: boolean;
+  hasPockets: boolean;
+  notes?: string;
+}
+
+export interface OrderDesignImages {
+  front?: string;
+  back?: string;
+  leftSleeve?: string;
+  rightSleeve?: string;
+  collarMockup?: string;
+  additional?: string[];
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -19,6 +37,7 @@ export interface Order {
   clientEmail?: string;
   teamOrClub?: string;
   sportType?: string;
+  collarType?: string; // Round Neck, V-Neck, Mandarin Collar, Polo Ribbed, Overlap
   fabricType: string;
   gsm?: number;
   totalQuantity: number;
@@ -30,6 +49,8 @@ export interface Order {
   paymentReference?: string;
   paymentProofUrl?: string;
   sizeBreakdown: SizeBreakdown;
+  shorts?: OrderShortsSpec;
+  designImages?: OrderDesignImages;
   roster?: PlayerRosterItem[];
   stage: OrderStage;
   currentLocation: FactoryLocation;
@@ -45,6 +66,7 @@ export interface Order {
   deliveryAddress?: string;
   hasShortage?: 'yes' | 'no';
   assignedToEmployeeId?: string;
+  assignedToEmployeeName?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -78,6 +100,9 @@ export interface Estimate {
   estimateNumber: string;
   customerId: string;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerAddress?: string;
   type: BusinessType;
   items: EstimateItem[];
   subtotal: number;
@@ -105,6 +130,8 @@ export interface Invoice {
   status: 'draft' | 'issued' | 'partially_paid' | 'paid' | 'overdue';
   dueDate: string;
   paymentTerms: string;
+  assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
   createdAt: string;
 }
 
@@ -136,6 +163,19 @@ export interface LedgerEntry {
   runningBalance: number;
 }
 
+export interface BankAccount {
+  id: string;
+  accountName: string;
+  bankName: string;
+  accountNumber: string;
+  branch?: string;
+  routingNumber?: string;
+  accountType: 'bank' | 'mobile_banking' | 'cash';
+  balance: number;
+  status: 'active' | 'inactive';
+  isDefault?: boolean;
+}
+
 export interface PaymentRecord {
   id: string;
   date: string;
@@ -145,10 +185,24 @@ export interface PaymentRecord {
   partyName: string;
   amount: number;
   method: 'bank_transfer' | 'bkash_nagad' | 'cash' | 'cheque' | 'card';
+  bankAccountId?: string;
+  bankAccountName?: string;
+  proofImageUrl?: string;
   transactionRef: string;
   invoiceOrBillRef: string;
   notes?: string;
   verifiedBy: string;
+}
+
+export interface EmployeePermissions {
+  canApprovePayments: boolean;
+  canAdvancePrint: boolean;
+  canAdvanceSewing: boolean;
+  canRaiseShortages: boolean;
+  canAccessFinancials: boolean;
+  canCreateInvoices: boolean;
+  canDisburseSalary: boolean;
+  canManageSettings: boolean;
 }
 
 export interface Employee {
@@ -167,6 +221,9 @@ export interface Employee {
   shift: 'morning' | 'evening' | 'general';
   status: 'active' | 'on_leave' | 'terminated';
   bankAccount?: string;
+  permissions?: EmployeePermissions;
+  activeStatus?: 'online' | 'idle' | 'offline';
+  lastSeen?: string;
 }
 
 export interface AttendanceRecord {
@@ -234,6 +291,9 @@ export interface Expense {
   location: 'head_office' | 'print_factory' | 'sewing_factory';
   amount: number;
   date: string;
+  bankAccountId?: string;
+  bankAccountName?: string;
+  proofImageUrl?: string;
   recordedBy?: string;
   notes?: string;
 }
@@ -322,31 +382,31 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   print_factory: {
     id: 'print_factory',
     title: 'Print Factory Floor Manager',
-    shortLabel: 'Print Factory Lead',
-    department: 'Sublimation & Heat Press',
+    shortLabel: 'Tongi Print Floor',
+    department: 'Sublimation & Calendar Printing',
     location: 'print_factory',
-    locationLabel: 'Print Factory (Tongi)',
-    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
-    description: 'Sublimation printing, calender rotary heat press, ink tank telemetry, delivery challan dispatch.',
+    locationLabel: 'Tongi Industrial Area',
+    badgeColor: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800',
+    description: 'Large-format paper sublimation printers, calendar heat press transfer, fabric roll dispatch to sewing.',
   },
   sewing_factory: {
     id: 'sewing_factory',
     title: 'Sewing & Assembly Factory Manager',
-    shortLabel: 'Sewing Factory Lead',
-    department: 'Cutting, Sewing & QC',
+    shortLabel: 'Mirpur Sewing Line',
+    department: 'Apparel Assembly & Stitching',
     location: 'sewing_factory',
-    locationLabel: 'Sewing Factory (Mirpur)',
+    locationLabel: 'Mirpur Garment Hub',
     badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800',
-    description: 'Fabric roll receipts, line cutting, stitching lines 1-4, QC inspection, shortage loop tickets, courier packing.',
+    description: 'Receives printed rolls, laser/hand cutting, flatlock sewing lines, quality control packing & courier dispatch.',
   },
   floor_worker: {
     id: 'floor_worker',
-    title: 'Floor Operator / Employee',
-    shortLabel: 'Employee / Worker',
+    title: 'Factory Line Worker / Operator',
+    shortLabel: 'Line Worker',
     department: 'Shop Floor Production',
     location: 'sewing_factory',
-    locationLabel: 'Factory Floor',
-    badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800',
+    locationLabel: 'Mirpur / Tongi Lines',
+    badgeColor: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
     description: 'Employee personal workstation: punch attendance, view assigned job cards, track payslips, report issues.',
   },
 };
@@ -384,10 +444,40 @@ export interface TeamMessage {
   senderRole: UserRole;
   senderAvatar?: string;
   content: string;
+  status?: 'sent' | 'delivered' | 'read';
   taggedEmployees?: string[];
   taggedDepartments?: string[];
   taggedOrders?: string[];
   taggedInvoices?: string[];
   attachment?: TeamMessageAttachment;
   createdAt: string;
+}
+
+export interface CompanySettings {
+  companyName: string;
+  tagline: string;
+  addressHeadOffice: string;
+  addressPrintMill: string;
+  addressSewingFactory: string;
+  phone: string;
+  email: string;
+  website: string;
+  taxVatPercentage: number;
+  currencySymbol: string;
+  invoicePrefix: string;
+  estimatePrefix: string;
+  jobCardPrefix: string;
+  dailyPrintTargetMeters: number;
+  dailySewingTargetPcs: number;
+}
+
+export interface DailyFactoryOutput {
+  date: string;
+  day: string;
+  printActual: number;
+  printTarget: number;
+  sewingActual: number;
+  sewingTarget: number;
+  reprintsRuined: number;
+  efficiencyPercent: number;
 }

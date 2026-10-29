@@ -1,0 +1,44 @@
+{
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "name": "Sportswear OS Multi-Factory ERP",
+  "short_name": "SportswearOS",
+  "description": "Centralized multi-factory cloud ERP and shop floor manufacturing control for sportswear apparel.",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#070b12",
+  "background_color": "#070b12",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Job Card",
+      "url": "/?action=new-order",
+      "description": "Create a new sportswear manufacturing order"
+    },
+    {
+      "name": "Scan Bundle QR",
+      "url": "/?action=scan-qr",
+      "description": "Scan physical fabric bundle barcode / QR tag"
+    },
+    {
+      "name": "Urgent Shortages",
+      "url": "/?action=shortages",
+      "description": "View active re-print tickets"
+    }
+  ]
+}

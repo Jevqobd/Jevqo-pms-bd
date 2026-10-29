@@ -12,6 +12,7 @@ import {
   OrderStage,
   ROLE_CONFIGS,
   AttendanceRecord,
+  DailyFactoryOutput,
 } from '../types/erp';
 import {
   Language,
@@ -20,6 +21,8 @@ import {
   getRoleName,
 } from '../utils/translations';
 import { canTransitionStage } from '../utils/erpLogic';
+import { ProductivityInsightsSection } from './ProductivityInsightsSection';
+import { ErpStorageService } from '../services/erpStorageService';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -45,6 +48,7 @@ interface DashboardAndTasksViewProps {
   attendance: AttendanceRecord[];
   currentRole: UserRole;
   language: Language;
+  productivityData?: DailyFactoryOutput[];
   onSelectOrder: (order: Order) => void;
   onAdvanceStage: (order: Order, targetStage: OrderStage) => void;
   onOpenCreateOrder: () => void;
@@ -60,6 +64,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
   attendance,
   currentRole,
   language,
+  productivityData,
   onSelectOrder,
   onAdvanceStage,
   onOpenCreateOrder,
@@ -324,6 +329,12 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
           </p>
         </div>
       </div>
+
+      {/* 3.5. Recharts Productivity Insights: Print & Sewing Factory Output vs Target */}
+      <ProductivityInsightsSection
+        data={productivityData || ErpStorageService.getLocalProductivity()}
+        language={language}
+      />
 
       {/* 4. "My Role Task Queue" (Immediate 1-Click Action Hub) */}
       <div className="space-y-4">

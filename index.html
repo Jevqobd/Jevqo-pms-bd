@@ -2,17 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Sportswear Multi-Factory Cloud ERP</title>
     <meta name="description" content="Centralized cloud ERP for sportswear manufacturing across Head Office, Print Factory, and Sewing Factory with live Job Cards, shortage tickets, and role-based tracking." />
     <meta property="og:title" content="Sportswear Multi-Factory Cloud ERP" />
     <meta property="og:description" content="Centralized cloud ERP for sportswear manufacturing across Head Office, Print Factory, and Sewing Factory with live Job Cards, shortage tickets, and role-based tracking." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- PWA & Android Mobile Meta Tags -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#070b12" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SportswearOS" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
   </head>
-  <body>
+  <body class="bg-[#070a12] text-slate-100 antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('SW registration skipped in preview iframe:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
-

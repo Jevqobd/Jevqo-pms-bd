@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#022c22" />
+      <stop offset="100%" stop-color="#042f2e" />
+    </linearGradient>
+    <linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" stroke="#10b981" stroke-width="8" stroke-opacity="0.3" />
+  
+  <!-- Outer Glow Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#10b981" stroke-width="2" stroke-opacity="0.2" stroke-dasharray="12 12" />
+
+  <!-- Jersey Silhouette Body -->
+  <g transform="translate(256, 256) scale(0.72) translate(-256, -256)">
+    <!-- Main Jersey Shape -->
+    <path d="M170 120 L210 160 C235 175 277 175 302 160 L342 120 L420 180 L370 240 L340 220 L340 430 C340 445 328 456 312 456 L200 456 C184 456 172 445 172 430 L172 220 L142 240 L92 180 Z" 
+          fill="url(#jerseyGrad)" 
+          stroke="#34d399" 
+          stroke-width="10" 
+          stroke-linejoin="round" />
+    
+    <!-- Collar Detail -->
+    <path d="M210 160 C235 185 277 185 302 160" fill="none" stroke="#f8fafc" stroke-width="12" stroke-linecap="round" />
+    
+    <!-- Chest Number '10' -->
+    <text x="256" y="320" font-family="monospace, sans-serif" font-weight="900" font-size="82" fill="#ffffff" text-anchor="middle" letter-spacing="-4">10</text>
+    
+    <!-- Factory Lightning Gear Accent -->
+    <path d="M246 360 L270 360 L248 395 L272 395 L242 435 L252 390 L234 390 Z" fill="#fbbf24" stroke="#d97706" stroke-width="2" />
+  </g>
+</svg>
