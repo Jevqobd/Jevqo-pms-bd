@@ -31,6 +31,12 @@ import {
   BankAccount,
   CompanySettings,
   DailyFactoryOutput,
+  CompanyAsset,
+  CompanyDocument,
+  MarketingFaqItem,
+  PurchaseOrder,
+  ProductSample,
+  ColorSwatchRecipe,
 } from '../types/erp';
 import {
   INITIAL_ORDERS,
@@ -50,6 +56,12 @@ import {
   INITIAL_BANK_ACCOUNTS,
   INITIAL_SETTINGS,
   INITIAL_PRODUCTIVITY_DATA,
+  INITIAL_COMPANY_ASSETS,
+  INITIAL_COMPANY_DOCUMENTS,
+  INITIAL_MARKETING_FAQS,
+  INITIAL_PURCHASE_ORDERS,
+  INITIAL_PRODUCT_SAMPLES,
+  INITIAL_COLOR_SWATCHES,
 } from './seedData';
 import { getStageLocation } from '../utils/erpLogic';
 
@@ -58,10 +70,10 @@ const KEYS = {
   SHORTAGES: 'sportswear_erp_shortages_v2',
   INVENTORY: 'sportswear_erp_inventory_v2',
   EXPENSES: 'sportswear_erp_expenses_v2',
-  CUSTOMERS: 'sportswear_erp_customers_v2',
+  CUSTOMERS: 'sportswear_erp_customers_v3',
   ESTIMATES: 'sportswear_erp_estimates_v2',
   INVOICES: 'sportswear_erp_invoices_v2',
-  VENDORS: 'sportswear_erp_vendors_v2',
+  VENDORS: 'sportswear_erp_vendors_v3',
   LEDGER: 'sportswear_erp_ledger_v2',
   PAYMENTS: 'sportswear_erp_payments_v2',
   EMPLOYEES: 'sportswear_erp_employees_v2',
@@ -69,8 +81,14 @@ const KEYS = {
   PAYSLIPS: 'sportswear_erp_payslips_v2',
   MESSAGES: 'sportswear_erp_messages_v2',
   BANKS: 'sportswear_erp_banks_v2',
-  SETTINGS: 'sportswear_erp_settings_v2',
+  SETTINGS: 'sportswear_erp_settings_v3',
   PRODUCTIVITY: 'sportswear_erp_productivity_v2',
+  ASSETS: 'sportswear_erp_assets_v1',
+  DOCUMENTS: 'sportswear_erp_documents_v1',
+  FAQS: 'sportswear_erp_faqs_v1',
+  PURCHASE_ORDERS: 'sportswear_erp_purchase_orders_v1',
+  PRODUCT_SAMPLES: 'sportswear_erp_product_samples_v1',
+  COLOR_SWATCHES: 'sportswear_erp_color_swatches_v1',
 };
 
 function getLocal<T>(key: string, initial: T): T {
@@ -305,6 +323,15 @@ export class ErpStorageService {
   static async createCustomer(customer: Customer): Promise<void> {
     const list = [customer, ...this.getLocalCustomers()];
     setLocal(KEYS.CUSTOMERS, list);
+  }
+
+  static async updateCustomer(id: string, partial: Partial<Customer>): Promise<void> {
+    const list = this.getLocalCustomers();
+    const idx = list.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.CUSTOMERS, [...list]);
+    }
   }
 
   // ===================== ESTIMATES / QUOTATIONS =====================
@@ -550,6 +577,94 @@ export class ErpStorageService {
     }
   }
 
+  static async createInventoryItem(item: InventoryItem): Promise<void> {
+    const list = [item, ...this.getLocalInventory()];
+    setLocal(KEYS.INVENTORY, list);
+  }
+
+  static async updateInventoryItem(itemId: string, partial: Partial<InventoryItem>): Promise<void> {
+    const list = this.getLocalInventory();
+    const idx = list.findIndex((i) => i.id === itemId);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial, updatedAt: new Date().toISOString() };
+      setLocal(KEYS.INVENTORY, [...list]);
+    }
+  }
+
+  static async deleteInventoryItem(itemId: string): Promise<void> {
+    const list = this.getLocalInventory().filter((i) => i.id !== itemId);
+    setLocal(KEYS.INVENTORY, list);
+  }
+
+  // ===================== COMPANY ASSETS =====================
+  static getLocalAssets(): CompanyAsset[] {
+    return getLocal<CompanyAsset[]>(KEYS.ASSETS, INITIAL_COMPANY_ASSETS);
+  }
+
+  static subscribeAssets(onUpdate: (data: CompanyAsset[]) => void): () => void {
+    onUpdate(this.getLocalAssets());
+    const handler = () => onUpdate(this.getLocalAssets());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createAsset(asset: CompanyAsset): Promise<void> {
+    const list = [asset, ...this.getLocalAssets()];
+    setLocal(KEYS.ASSETS, list);
+  }
+
+  static async updateAsset(assetId: string, partial: Partial<CompanyAsset>): Promise<void> {
+    const list = this.getLocalAssets();
+    const idx = list.findIndex((a) => a.id === assetId);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.ASSETS, [...list]);
+    }
+  }
+
+  // ===================== COMPANY DOCUMENTS =====================
+  static getLocalDocuments(): CompanyDocument[] {
+    return getLocal<CompanyDocument[]>(KEYS.DOCUMENTS, INITIAL_COMPANY_DOCUMENTS);
+  }
+
+  static subscribeDocuments(onUpdate: (data: CompanyDocument[]) => void): () => void {
+    onUpdate(this.getLocalDocuments());
+    const handler = () => onUpdate(this.getLocalDocuments());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createDocument(docItem: CompanyDocument): Promise<void> {
+    const list = [docItem, ...this.getLocalDocuments()];
+    setLocal(KEYS.DOCUMENTS, list);
+  }
+
+  static async updateDocument(docId: string, partial: Partial<CompanyDocument>): Promise<void> {
+    const list = this.getLocalDocuments();
+    const idx = list.findIndex((d) => d.id === docId);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.DOCUMENTS, [...list]);
+    }
+  }
+
+  // ===================== MARKETING FAQS =====================
+  static getLocalFaqs(): MarketingFaqItem[] {
+    return getLocal<MarketingFaqItem[]>(KEYS.FAQS, INITIAL_MARKETING_FAQS);
+  }
+
+  static subscribeFaqs(onUpdate: (data: MarketingFaqItem[]) => void): () => void {
+    onUpdate(this.getLocalFaqs());
+    const handler = () => onUpdate(this.getLocalFaqs());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createFaq(faq: MarketingFaqItem): Promise<void> {
+    const list = [faq, ...this.getLocalFaqs()];
+    setLocal(KEYS.FAQS, list);
+  }
+
   // ===================== EXPENSES =====================
   static getLocalExpenses(): Expense[] {
     return getLocal<Expense[]>(KEYS.EXPENSES, INITIAL_EXPENSES);
@@ -695,6 +810,156 @@ export class ErpStorageService {
       nextList = [...list, record];
     }
     setLocal(KEYS.PRODUCTIVITY, nextList);
+  }
+
+  // ===================== PURCHASE ORDERS (PO) & GRN STOCK SYNC =====================
+  static getLocalPurchaseOrders(): PurchaseOrder[] {
+    return getLocal<PurchaseOrder[]>(KEYS.PURCHASE_ORDERS, INITIAL_PURCHASE_ORDERS);
+  }
+
+  static subscribePurchaseOrders(onUpdate: (data: PurchaseOrder[]) => void): () => void {
+    onUpdate(this.getLocalPurchaseOrders());
+    const handler = () => onUpdate(this.getLocalPurchaseOrders());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createPurchaseOrder(po: PurchaseOrder): Promise<void> {
+    const list = [po, ...this.getLocalPurchaseOrders()];
+    setLocal(KEYS.PURCHASE_ORDERS, list);
+  }
+
+  static async updatePurchaseOrder(id: string, partial: Partial<PurchaseOrder>): Promise<void> {
+    const list = this.getLocalPurchaseOrders();
+    const idx = list.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial };
+      setLocal(KEYS.PURCHASE_ORDERS, [...list]);
+    }
+  }
+
+  static async receivePurchaseOrderGrn(poId: string): Promise<void> {
+    const list = this.getLocalPurchaseOrders();
+    const idx = list.findIndex((p) => p.id === poId);
+    if (idx === -1) return;
+
+    const po = list[idx];
+    if (po.status === 'received_grn') return;
+
+    const grnNumber = `GRN-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
+    const today = new Date().toISOString().split('T')[0];
+
+    list[idx] = {
+      ...po,
+      status: 'received_grn',
+      grnNumber,
+      receivedAt: today,
+      qualityCheckPassed: true,
+    };
+    setLocal(KEYS.PURCHASE_ORDERS, [...list]);
+
+    // Auto-increment linked raw inventory stock
+    const invList = this.getLocalInventory();
+    let invUpdated = false;
+    for (const item of po.items) {
+      const matchIdx = invList.findIndex(
+        (i) =>
+          (item.inventoryItemId && i.id === item.inventoryItemId) ||
+          i.name.toLowerCase() === item.itemName.toLowerCase()
+      );
+      if (matchIdx !== -1) {
+        invList[matchIdx] = {
+          ...invList[matchIdx],
+          currentStock: Number((invList[matchIdx].currentStock + item.quantity).toFixed(2)),
+          updatedAt: new Date().toISOString(),
+        };
+        invUpdated = true;
+      }
+    }
+    if (invUpdated) {
+      setLocal(KEYS.INVENTORY, [...invList]);
+    }
+
+    // Update vendor balance & ledger
+    const vendors = this.getLocalVendors();
+    const vIdx = vendors.findIndex((v) => v.id === po.vendorId);
+    if (vIdx !== -1) {
+      const v = vendors[vIdx];
+      vendors[vIdx] = {
+        ...v,
+        totalPurchased: v.totalPurchased + po.totalAmount,
+        balanceDue: v.balanceDue + po.totalAmount,
+      };
+      setLocal(KEYS.VENDORS, [...vendors]);
+
+      const ledger = this.getLocalLedger();
+      const newEntry: LedgerEntry = {
+        id: `led-grn-${Date.now()}`,
+        entityType: 'vendor',
+        entityId: v.id,
+        entityName: v.name,
+        date: today,
+        referenceType: 'bill',
+        referenceId: `${po.poNumber} / ${grnNumber}`,
+        description: `GRN Received: ${po.items.map((i) => `${i.quantity} ${i.unit} ${i.itemName}`).join(', ')}`,
+        debit: 0,
+        credit: po.totalAmount,
+        runningBalance: vendors[vIdx].balanceDue,
+      };
+      setLocal(KEYS.LEDGER, [newEntry, ...ledger]);
+    }
+  }
+
+  // ===================== NEW PRODUCT DEVELOPMENT (NPD) & SAMPLES =====================
+  static getLocalProductSamples(): ProductSample[] {
+    return getLocal<ProductSample[]>(KEYS.PRODUCT_SAMPLES, INITIAL_PRODUCT_SAMPLES);
+  }
+
+  static subscribeProductSamples(onUpdate: (data: ProductSample[]) => void): () => void {
+    onUpdate(this.getLocalProductSamples());
+    const handler = () => onUpdate(this.getLocalProductSamples());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createProductSample(sample: ProductSample): Promise<void> {
+    const list = [sample, ...this.getLocalProductSamples()];
+    setLocal(KEYS.PRODUCT_SAMPLES, list);
+  }
+
+  static async updateProductSample(id: string, partial: Partial<ProductSample>): Promise<void> {
+    const list = this.getLocalProductSamples();
+    const idx = list.findIndex((s) => s.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial, updatedAt: new Date().toISOString().split('T')[0] };
+      setLocal(KEYS.PRODUCT_SAMPLES, [...list]);
+    }
+  }
+
+  // ===================== SUBLIMATION COLOR SWATCH RECIPES =====================
+  static getLocalColorSwatches(): ColorSwatchRecipe[] {
+    return getLocal<ColorSwatchRecipe[]>(KEYS.COLOR_SWATCHES, INITIAL_COLOR_SWATCHES);
+  }
+
+  static subscribeColorSwatches(onUpdate: (data: ColorSwatchRecipe[]) => void): () => void {
+    onUpdate(this.getLocalColorSwatches());
+    const handler = () => onUpdate(this.getLocalColorSwatches());
+    window.addEventListener('sportswear_erp_sync', handler);
+    return () => window.removeEventListener('sportswear_erp_sync', handler);
+  }
+
+  static async createColorSwatch(swatch: ColorSwatchRecipe): Promise<void> {
+    const list = [swatch, ...this.getLocalColorSwatches()];
+    setLocal(KEYS.COLOR_SWATCHES, list);
+  }
+
+  static async updateColorSwatch(id: string, partial: Partial<ColorSwatchRecipe>): Promise<void> {
+    const list = this.getLocalColorSwatches();
+    const idx = list.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...partial, updatedAt: new Date().toISOString().split('T')[0] };
+      setLocal(KEYS.COLOR_SWATCHES, [...list]);
+    }
   }
 
   // Seed to firestore helper

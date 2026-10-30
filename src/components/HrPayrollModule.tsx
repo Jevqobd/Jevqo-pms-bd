@@ -42,6 +42,8 @@ interface HrPayrollModuleProps {
   onPunchAttendance: (record: AttendanceRecord) => Promise<void>;
   onDisburseSalary: (slipId: string, paymentMethod: string) => Promise<void>;
   onCreateEmployee: (employee: Employee) => Promise<void>;
+  onOpenEmployeeProfile?: (emp: Employee) => void;
+  onUpdateEmployee?: (employeeId: string, partial: Partial<Employee>) => Promise<void>;
 }
 
 export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
@@ -53,6 +55,8 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
   onPunchAttendance,
   onDisburseSalary,
   onCreateEmployee,
+  onOpenEmployeeProfile,
+  onUpdateEmployee,
 }) => {
   // If user is a factory manager, default to department attendance entry!
   const defaultTab =
@@ -86,8 +90,11 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpEmail, setNewEmpEmail] = useState('');
   const [newEmpPhone, setNewEmpPhone] = useState('');
+  const [newEmpNid, setNewEmpNid] = useState('');
   const [newEmpDept, setNewEmpDept] = useState('Shop Floor Production');
   const [newEmpDesignation, setNewEmpDesignation] = useState('Sewing Machine Operator');
+  const [newEmpPost, setNewEmpPost] = useState('Senior Line Operator');
+  const [newEmpRole, setNewEmpRole] = useState<UserRole>('sewing_factory');
   const [newEmpLocation, setNewEmpLocation] = useState<FactoryLocation>('sewing_factory');
   const [newEmpSalary, setNewEmpSalary] = useState(25000);
   const [newEmpOtRate, setNewEmpOtRate] = useState(160);
@@ -180,19 +187,24 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
       name: newEmpName,
       email: newEmpEmail || `${newEmpName.toLowerCase().replace(/\s+/g, '.')}@sportswear.erp`,
       phone: newEmpPhone || '+880 1700-000000',
-      role: 'floor_worker',
+      nid: newEmpNid || '1995309485112',
+      role: newEmpRole,
       department: newEmpDept,
       designation: newEmpDesignation,
+      post: newEmpPost || 'Grade-A Specialist',
       location: newEmpLocation,
       baseSalary: Number(newEmpSalary),
       hourlyOvertimeRate: Number(newEmpOtRate),
       joiningDate: todayStr,
       shift: newEmpShift,
       status: 'active',
+      contractStatus: 'permanent',
+      contractCreatedDate: todayStr,
     });
 
     setIsAddEmployeeOpen(false);
     setNewEmpName('');
+    setNewEmpNid('');
   };
 
   return (
@@ -566,56 +578,121 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                     key={emp.id}
                     className="card-hover bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between space-y-3"
                   >
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="font-black text-white text-sm">{emp.name}</h4>
-                            <span className="font-mono text-[10px] text-slate-400">({emp.employeeId})</span>
+                    <div className="space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          {emp.pictureUrl ? (
+                            <img
+                              src={emp.pictureUrl}
+                              alt={emp.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-teal-500/40 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 font-black flex items-center justify-center text-xs shrink-0">
+                              {emp.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-black text-white text-sm">{emp.name}</h4>
+                              <span className="font-mono text-[10px] text-slate-400">
+                                ({emp.employeeId})
+                              </span>
+                            </div>
+                            <span className="text-teal-400 font-bold text-xs block">
+                              {emp.designation}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-950/90 text-indigo-300 border border-indigo-800/60 font-semibold">
+                                Post: {emp.post || 'Senior Staff'}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                                Role: {emp.role.replace('_', ' ')}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-teal-400 font-bold text-xs block">
-                            {emp.designation}
-                          </span>
                         </div>
 
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          emp.location === 'head_office'
-                            ? 'bg-blue-950/80 text-blue-300 border border-blue-800'
-                            : emp.location === 'print_factory'
-                            ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
-                            : 'bg-indigo-950/80 text-indigo-300 border border-indigo-800'
-                        }`}>
-                          {emp.location.replace('_', ' ').toUpperCase()}
-                        </span>
+                        {onUpdateEmployee ? (
+                          <select
+                            value={emp.location}
+                            onChange={(e) =>
+                              onUpdateEmployee(emp.id, {
+                                location: e.target.value as FactoryLocation,
+                              })
+                            }
+                            className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-[10px] font-bold text-emerald-400 cursor-pointer"
+                            title="Reassign Employee Factory Location"
+                          >
+                            <option value="head_office">Banani HQ</option>
+                            <option value="print_factory">Tongi Print</option>
+                            <option value="sewing_factory">Mirpur Sewing</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              emp.location === 'head_office'
+                                ? 'bg-blue-950/80 text-blue-300 border border-blue-800'
+                                : emp.location === 'print_factory'
+                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
+                                : 'bg-indigo-950/80 text-indigo-300 border border-indigo-800'
+                            }`}
+                          >
+                            {emp.location.replace('_', ' ').toUpperCase()}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="text-[11px] text-slate-400 space-y-1">
-                        <div>📧 {emp.email}</div>
-                        <div>📞 {emp.phone}</div>
-                        <div className="flex justify-between pt-1 font-mono text-[10px]">
-                          <span>Salary: <strong className="text-white">BDT {emp.baseSalary.toLocaleString()}</strong></span>
-                          <span>OT: <strong className="text-purple-400">BDT {emp.hourlyOvertimeRate}/hr</strong></span>
+                      <div className="text-[11px] text-slate-400 space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                        <div className="flex items-center justify-between">
+                          <span>📧 {emp.email}</span>
+                          {emp.nid && (
+                            <span className="font-mono text-[10px] text-amber-300">
+                              NID: {emp.nid}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>📞 {emp.phone}</span>
+                          <span className="text-[10px] text-emerald-400 font-semibold uppercase">
+                            {emp.contractStatus || 'Permanent'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-1 border-t border-slate-800/80 font-mono text-[10px]">
+                          <span>
+                            Salary:{' '}
+                            <strong className="text-white">
+                              BDT {emp.baseSalary.toLocaleString()}
+                            </strong>
+                          </span>
+                          <span>
+                            OT:{' '}
+                            <strong className="text-purple-400">
+                              BDT {emp.hourlyOvertimeRate}/hr
+                            </strong>
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${punched ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {punched ? `In: ${punched.checkInTime} (${punched.status})` : 'Not Clocked In'}
-                        </span>
-                      </div>
+                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => onOpenEmployeeProfile?.(emp)}
+                        className="btn-press flex-1 py-1.5 px-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Profile, Contract & Access</span>
+                      </button>
 
                       <button
                         onClick={() => handleManagerPunch(emp, punched ? 'absent' : 'present')}
-                        className={`btn-press px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer ${
+                        className={`btn-press px-2.5 py-1.5 rounded-xl font-bold text-[11px] cursor-pointer ${
                           punched
                             ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
                             : 'bg-teal-600 hover:bg-teal-500 text-white shadow-xs'
                         }`}
                       >
-                        {punched ? 'Toggle' : 'Clock In'}
+                        {punched ? 'Clocked In' : 'Clock In'}
                       </button>
                     </div>
                   </div>
@@ -815,16 +892,28 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
             </div>
 
             <form onSubmit={handleAddEmployeeSubmit} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newEmpName}
-                  onChange={(e) => setNewEmpName(e.target.value)}
-                  placeholder="e.g. Shakil Hossain"
-                  className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newEmpName}
+                    onChange={(e) => setNewEmpName(e.target.value)}
+                    placeholder="e.g. Shakil Hossain"
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">National ID (NID)</label>
+                  <input
+                    type="text"
+                    value={newEmpNid}
+                    onChange={(e) => setNewEmpNid(e.target.value)}
+                    placeholder="e.g. 1994269854120"
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-amber-300 font-mono mt-1"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -839,6 +928,20 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                   />
                 </div>
                 <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Post / Grade</label>
+                  <input
+                    type="text"
+                    required
+                    value={newEmpPost}
+                    onChange={(e) => setNewEmpPost(e.target.value)}
+                    placeholder="e.g. Line Chief / Senior Operator"
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Department</label>
                   <input
                     type="text"
@@ -848,20 +951,47 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                     className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Facility Location</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">System Role</label>
+                  <select
+                    value={newEmpRole}
+                    onChange={(e) => setNewEmpRole(e.target.value as UserRole)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-indigo-300 font-bold mt-1"
+                  >
+                    <option value="print_factory">Print Factory</option>
+                    <option value="sewing_factory">Sewing Factory</option>
+                    <option value="design_1">Design 1 (Concept)</option>
+                    <option value="design_2">Design 2 (Pre-Press)</option>
+                    <option value="marketing">Marketing & CRM</option>
+                    <option value="accountant">Finance & Accounts</option>
+                    <option value="hr_manager">HR Manager</option>
+                    <option value="floor_worker">Floor Operator</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Assign Factory</label>
                   <select
                     value={newEmpLocation}
                     onChange={(e) => setNewEmpLocation(e.target.value as FactoryLocation)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-emerald-400 font-bold mt-1"
                   >
                     <option value="head_office">Head Office (Banani)</option>
                     <option value="print_factory">Print Mill (Tongi)</option>
                     <option value="sewing_factory">Sewing Line (Mirpur)</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={newEmpPhone}
+                    onChange={(e) => setNewEmpPhone(e.target.value)}
+                    placeholder="+880 17..."
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white mt-1"
+                  />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Shift</label>

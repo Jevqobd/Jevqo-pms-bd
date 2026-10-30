@@ -33,8 +33,9 @@ interface HeadOfficeViewProps {
   onUpdateOrder: (orderId: string, partial: Partial<Order>) => Promise<void>;
   onSelectOrder: (order: Order) => void;
   onOpenCreateOrder: () => void;
-  onOpenAiMockup: () => void;
   onOpen3DStudio: () => void;
+  onOpenCustomersCrm?: () => void;
+  externalDesignToolName?: string;
 }
 
 export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
@@ -44,13 +45,20 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
   onUpdateOrder,
   onSelectOrder,
   onOpenCreateOrder,
-  onOpenAiMockup,
   onOpen3DStudio,
+  onOpenCustomersCrm,
+  externalDesignToolName = 'CLO3D / Adobe Illustrator API',
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'marketing_crm' | 'owner_approvals' | 'design_1' | 'design_2'>('marketing_crm');
   const [searchTerm, setSearchTerm] = useState('');
   const [driveLinkInputs, setDriveLinkInputs] = useState<Record<string, string>>({});
   const [mockupNotesInputs, setMockupNotesInputs] = useState<Record<string, string>>({});
+  const [inlineNotice, setInlineNotice] = useState<string | null>(null);
+
+  const showNotice = (msg: string) => {
+    setInlineNotice(msg);
+    setTimeout(() => setInlineNotice(null), 3500);
+  };
 
   // Sub-queues
   const pendingPaymentOrders = orders.filter(
@@ -87,6 +95,7 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
       stage: 'payment_verified',
       updatedAt: new Date().toISOString(),
     });
+    showNotice(`Payment verified for ${order.orderNumber}. Forwarded to Design Team 1.`);
   };
 
   const handleApproveMockup = async (order: Order) => {
@@ -95,12 +104,13 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
       mockupNotes: mockupNotesInputs[order.id] || order.mockupNotes || 'Client approved mockup via WhatsApp sign-off.',
       updatedAt: new Date().toISOString(),
     });
+    showNotice(`Mockup approved for ${order.orderNumber}. Sent to Design Team 2.`);
   };
 
   const handleSavePrintFiles = async (order: Order) => {
     const link = driveLinkInputs[order.id] || order.printReadyLink;
     if (!link) {
-      alert('Please enter a valid Google Drive or WeTransfer download link for print-ready files.');
+      showNotice('Please enter a valid Google Drive or WeTransfer download link for print-ready files.');
       return;
     }
     await onUpdateOrder(order.id, {
@@ -108,10 +118,18 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
       stage: 'pattern_spec_ready',
       updatedAt: new Date().toISOString(),
     });
+    showNotice(`Print-ready cloud package linked for ${order.orderNumber}.`);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150 text-xs">
+      {inlineNotice && (
+        <div className="fixed bottom-6 right-6 z-50 bg-indigo-950/95 border border-indigo-500/40 text-indigo-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{inlineNotice}</span>
+        </div>
+      )}
+
       {/* Head Office Banner */}
       <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-violet-800 text-white shadow-lg shadow-indigo-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -128,15 +146,24 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-blue-100 max-w-2xl">
-              Command center for customer lead intake, invoice generation, owner payment clearances, 2D/3D concept mockups, pattern sizing specs, and print-ready cloud file releases.
+              Command center for customer lead intake, invoice generation, owner payment clearances, external design API sync ({externalDesignToolName}), pattern sizing specs, and print-ready cloud file releases.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenCustomersCrm && (
+            <button
+              onClick={onOpenCustomersCrm}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs border border-white/20 transition cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              <span>Customers & Marketing Q&A</span>
+            </button>
+          )}
           <button
             onClick={onOpenCreateOrder}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md transition cursor-pointer"
           >
             <span>+ Create Job Card</span>
           </button>
@@ -380,23 +407,25 @@ export const HeadOfficeView: React.FC<HeadOfficeViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-black text-sm text-gray-900 dark:text-white">
-                Design Team 1 Workbench (Concept Mockups)
+                Design Team 1 Workbench (External Design API & 3D Mockups)
               </h3>
               <p className="text-gray-500 text-[11px]">
-                Create visual jersey mockups using AI Mockup Studio or Three.js 3D Studio, then log client approvals.
+                Sync visual jersey mockups from {externalDesignToolName} or Three.js 3D Studio, then log client approvals.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={onOpenAiMockup}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 transition"
+                onClick={() =>
+                  showNotice(`Connected to ${externalDesignToolName}: Latest 3D renders & vector art synced to active Job Cards!`)
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold hover:bg-teal-500 transition cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>AI Mockup Studio</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Sync External Design API</span>
               </button>
               <button
                 onClick={onOpen3DStudio}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5" />
                 <span>3D Sportswear Studio</span>

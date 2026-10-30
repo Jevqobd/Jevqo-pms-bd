@@ -13,6 +13,9 @@ import {
   Expense,
   Order,
   UserRole,
+  BankAccount,
+  Employee,
+  Customer,
 } from '../types/erp';
 import {
   DollarSign,
@@ -23,17 +26,20 @@ import {
   Plus,
   Search,
   CheckCircle2,
-  Clock,
-  ArrowRight,
   TrendingUp,
-  Download,
-  Filter,
   Check,
-  Eye,
   X,
   Layers,
   Lock,
-  ShieldAlert,
+  Printer,
+  Upload,
+  Landmark,
+  Image as ImageIcon,
+  Star,
+  Award,
+  Key,
+  QrCode,
+  ExternalLink,
 } from 'lucide-react';
 
 interface AccountingModuleProps {
@@ -45,11 +51,16 @@ interface AccountingModuleProps {
   expenses: Expense[];
   orders: Order[];
   currentRole: UserRole;
+  bankAccounts?: BankAccount[];
+  employees?: Employee[];
+  customers?: Customer[];
   onRecordPayment: (payment: PaymentRecord) => Promise<void>;
   onAddExpense: (expense: Expense) => Promise<void>;
   onCreateEstimate: (estimate: Estimate) => Promise<void>;
   onConvertEstimate: (estimate: Estimate) => Promise<void>;
   onUpdateInvoice: (id: string, partial: Partial<Invoice>) => Promise<void>;
+  onCreateBankAccount?: (acc: BankAccount) => Promise<void>;
+  onOpenClientPortal?: () => void;
 }
 
 export const AccountingModule: React.FC<AccountingModuleProps> = ({
@@ -61,36 +72,59 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   expenses,
   orders,
   currentRole,
+  bankAccounts = [],
+  employees = [],
+  customers = [],
   onRecordPayment,
   onAddExpense,
   onCreateEstimate,
   onConvertEstimate,
   onUpdateInvoice,
+  onCreateBankAccount,
+  onOpenClientPortal,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'invoices' | 'estimates' | 'ledger' | 'payments' | 'expenses' | 'pnl'
+    'invoices' | 'estimates' | 'ledger' | 'payments' | 'expenses' | 'banks' | 'pnl'
   >('invoices');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEntityId, setSelectedEntityId] = useState<string>('all');
+  const [selectedClientNameFilter, setSelectedClientNameFilter] = useState<string>('all');
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isNewEstimateOpen, setIsNewEstimateOpen] = useState(false);
+  const [isAddBankOpen, setIsAddBankOpen] = useState(false);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
 
   // New Payment Form State
   const [payPartyType, setPayPartyType] = useState<'client' | 'vendor'>('client');
   const [payPartyName, setPayPartyName] = useState('');
   const [payAmount, setPayAmount] = useState<number>(200);
-  const [payMethod, setPayMethod] = useState<'bank_transfer' | 'bkash_nagad' | 'cash' | 'cheque'>('bkash_nagad');
+  const [payMethod, setPayMethod] = useState<'bank_transfer' | 'bkash_nagad' | 'cash' | 'cheque'>(
+    'bkash_nagad'
+  );
+  const [payBankAccountId, setPayBankAccountId] = useState<string>('');
+  const [payProofImageUrl, setPayProofImageUrl] = useState<string>('');
   const [payRef, setPayRef] = useState('');
   const [payNotes, setPayNotes] = useState('');
 
   // New Expense Form State
   const [expTitle, setExpTitle] = useState('');
   const [expCategory, setExpCategory] = useState('Utilities');
-  const [expLocation, setExpLocation] = useState<'head_office' | 'print_factory' | 'sewing_factory'>('print_factory');
+  const [expLocation, setExpLocation] = useState<
+    'head_office' | 'print_factory' | 'sewing_factory'
+  >('print_factory');
   const [expAmount, setExpAmount] = useState<number>(100);
+  const [expBankAccountId, setExpBankAccountId] = useState<string>('');
+  const [expProofImageUrl, setExpProofImageUrl] = useState<string>('');
+
+  // New Bank Account State
+  const [newBankName, setNewBankName] = useState('');
+  const [newAccountTitle, setNewAccountTitle] = useState('Ridwear Sportswear Mfg. Ltd.');
+  const [newAccountNum, setNewAccountNum] = useState('');
+  const [newBranchName, setNewBranchName] = useState('Banani Corporate Branch');
+  const [newBankType, setNewBankType] = useState<'bank' | 'mobile_banking' | 'cash'>('bank');
+  const [newBankBalance, setNewBankBalance] = useState<number>(25000);
 
   // Totals
   const totalInvoiced = invoices.reduce((s, i) => s + i.totalAmount, 0);
@@ -100,9 +134,26 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   const totalExpenseAmount = expenses.reduce((s, e) => s + e.amount, 0);
   const netProfit = totalInvoiced - totalExpenseAmount - (totalVendorPayables * 0.4);
 
+  const handleProofFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (val: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setter(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payPartyName.trim() || payAmount <= 0) return;
+
+    const linkedBank = bankAccounts.find((b) => b.id === payBankAccountId);
 
     await onRecordPayment({
       id: `pay-${Date.now()}`,
@@ -113,6 +164,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       partyName: payPartyName,
       amount: Number(payAmount),
       method: payMethod,
+      bankAccountId: linkedBank?.id,
+      bankAccountName: linkedBank?.bankName,
+      proofImageUrl: payProofImageUrl || undefined,
       transactionRef: payRef || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
       invoiceOrBillRef: 'MANUAL-ENTRY',
       notes: payNotes,
@@ -123,11 +177,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
     setPayPartyName('');
     setPayRef('');
     setPayNotes('');
+    setPayProofImageUrl('');
   };
 
   const handleSubmitExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expTitle.trim() || expAmount <= 0) return;
+
+    const linkedBank = bankAccounts.find((b) => b.id === expBankAccountId);
 
     await onAddExpense({
       id: `exp-${Date.now()}`,
@@ -137,10 +194,33 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
       amount: Number(expAmount),
       date: new Date().toISOString().split('T')[0],
       recordedBy: 'Accounts Manager',
+      bankAccountId: linkedBank?.id,
+      bankAccountName: linkedBank?.bankName,
+      proofImageUrl: expProofImageUrl || undefined,
     });
 
     setIsAddExpenseOpen(false);
     setExpTitle('');
+    setExpProofImageUrl('');
+  };
+
+  const handleCreateBankSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBankName.trim() || !onCreateBankAccount) return;
+    await onCreateBankAccount({
+      id: `bnk-${Date.now()}`,
+      bankName: newBankName,
+      accountName: newAccountTitle,
+      accountNumber: newAccountNum || '140299384100',
+      branch: newBranchName,
+      accountType: newBankType,
+      balance: Number(newBankBalance) || 0,
+      status: 'active',
+      isDefault: false,
+    });
+    setIsAddBankOpen(false);
+    setNewBankName('');
+    setNewAccountNum('');
   };
 
   // Permission flag: Owner and Accountant have full access; Marketing can access Invoices/Estimates and Record Client Payments
@@ -302,8 +382,20 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('banks')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition whitespace-nowrap cursor-pointer ${
+            activeTab === 'banks'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Landmark className="w-3.5 h-3.5" />
+          <span>Bank Accounts ({bankAccounts.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('pnl')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition whitespace-nowrap cursor-pointer ${
             activeTab === 'pnl'
               ? 'bg-purple-600 text-white shadow-xs'
               : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -466,19 +558,29 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     <span className="font-black text-gray-900 dark:text-white text-sm">${est.totalAmount}</span>
                   </div>
 
-                  {est.status !== 'converted' ? (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => onConvertEstimate(est)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 font-bold text-xs cursor-pointer"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Convert to Job Card</span>
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print Quote PDF</span>
                     </button>
-                  ) : (
-                    <span className="text-xs text-purple-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4" /> Active Job Card Created
-                    </span>
-                  )}
+
+                    {est.status !== 'converted' ? (
+                      <button
+                        onClick={() => onConvertEstimate(est)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Convert to Job Card</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-purple-600 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" /> Active Job Card Created
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -495,7 +597,20 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <p className="text-gray-500 text-[11px]">Complete statement of account: Debits (Invoices/Bills) & Credits (Payments).</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={selectedClientNameFilter}
+                onChange={(e) => setSelectedClientNameFilter(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs font-bold"
+              >
+                <option value="all">-- Filter Individual B2B Client / Vendor --</option>
+                {Array.from(new Set(ledgerEntries.map((l) => l.entityName))).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+
               <select
                 value={selectedEntityId}
                 onChange={(e) => setSelectedEntityId(e.target.value)}
@@ -505,6 +620,14 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <option value="client">All Clients Only</option>
                 <option value="vendor">All Vendors Only</option>
               </select>
+
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Client Statement</span>
+              </button>
             </div>
           </div>
 
@@ -525,7 +648,12 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs font-mono">
                   {ledgerEntries
-                    .filter((l) => selectedEntityId === 'all' || l.entityType === selectedEntityId)
+                    .filter(
+                      (l) =>
+                        (selectedEntityId === 'all' || l.entityType === selectedEntityId) &&
+                        (selectedClientNameFilter === 'all' ||
+                          l.entityName === selectedClientNameFilter)
+                    )
                     .map((led) => (
                       <tr key={led.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40">
                         <td className="p-3 text-gray-500">{led.date}</td>
@@ -640,8 +768,92 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400 font-bold uppercase">{exp.location.replace('_', ' ')}</span>
-                  <span className="text-base font-black text-purple-600">${exp.amount}</span>
+                  <div>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase block">
+                      {exp.location.replace('_', ' ')}
+                    </span>
+                    {exp.bankAccountName && (
+                      <span className="text-[10px] text-indigo-400 font-mono">
+                        Paid via: {exp.bankAccountName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-base font-black text-purple-600 block">${exp.amount}</span>
+                    {exp.proofImageUrl && (
+                      <a
+                        href={exp.proofImageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-emerald-400 underline"
+                      >
+                        Receipt Proof
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: BANK ACCOUNTS & TREASURY VAULTS */}
+      {activeTab === 'banks' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-black text-sm text-gray-900 dark:text-white">
+                Corporate Bank Accounts, Mobile Wallets & Cash Vaults
+              </h3>
+              <p className="text-gray-500 text-[11px]">
+                Link customer payments, factory expenses, and vendor settlements directly to bank accounts.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAddBankOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Bank Account</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {bankAccounts.map((bnk) => (
+              <div
+                key={bnk.id}
+                className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 shadow-lg"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-white text-sm">{bnk.bankName}</h4>
+                      <span className="text-[11px] text-slate-400">{bnk.branch || 'Corporate Branch'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-emerald-300">
+                    {bnk.accountType.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 font-mono text-xs space-y-1">
+                  <div className="text-[10px] text-slate-500 font-sans">
+                    Account Name: <strong className="text-slate-300">{bnk.accountName}</strong>
+                  </div>
+                  <div className="text-indigo-400 font-bold">A/C: {bnk.accountNumber}</div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">
+                    Current Balance
+                  </span>
+                  <span className="text-lg font-black text-emerald-400 font-mono">
+                    ${bnk.balance.toLocaleString()}
+                  </span>
                 </div>
               </div>
             ))}
@@ -815,7 +1027,27 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Transaction / Cheque Ref</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Link Corporate Bank Account / Wallet
+                </label>
+                <select
+                  value={payBankAccountId}
+                  onChange={(e) => setPayBankAccountId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1"
+                >
+                  <option value="">-- Select Bank Account / Wallet --</option>
+                  {bankAccounts.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.bankName} ({b.accountNumber}) - Bal: ${b.balance}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Transaction / Cheque Ref
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. TXN-BKASH-88192 or CHQ #4091"
@@ -825,9 +1057,33 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 />
               </div>
 
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    Upload Payment Receipt / Slip Proof Image
+                  </label>
+                  <label className="text-[10px] font-bold text-emerald-500 cursor-pointer flex items-center gap-1">
+                    <Upload className="w-3 h-3" /> Upload Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleProofFileUpload(e, setPayProofImageUrl)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  placeholder="https://... or upload screenshot proof"
+                  value={payProofImageUrl}
+                  onChange={(e) => setPayProofImageUrl(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1"
+                />
+              </div>
+
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition mt-2"
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition mt-2 cursor-pointer"
               >
                 Confirm & Record in Ledger
               </button>
@@ -841,13 +1097,19 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-800 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-black text-sm text-gray-900 dark:text-white">Record Operating Expense</h3>
-              <button onClick={() => setIsAddExpenseOpen(false)}><X className="w-4 h-4 text-gray-400" /></button>
+              <h3 className="font-black text-sm text-gray-900 dark:text-white">
+                Record Operating Expense
+              </h3>
+              <button onClick={() => setIsAddExpenseOpen(false)}>
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
             </div>
 
             <form onSubmit={handleSubmitExpense} className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Expense Title</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Expense Title
+                </label>
                 <input
                   type="text"
                   required
@@ -875,7 +1137,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Factory Location</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    Factory Location
+                  </label>
                   <select
                     value={expLocation}
                     onChange={(e: any) => setExpLocation(e.target.value)}
@@ -888,20 +1152,66 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={expAmount}
+                    onChange={(e) => setExpAmount(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    Paid From Bank / Vault
+                  </label>
+                  <select
+                    value={expBankAccountId}
+                    onChange={(e) => setExpBankAccountId(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1"
+                  >
+                    <option value="">-- Select Account --</option>
+                    {bankAccounts.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.bankName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Amount ($)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">
+                    Upload Voucher / Receipt Proof Image
+                  </label>
+                  <label className="text-[10px] font-bold text-purple-400 cursor-pointer flex items-center gap-1">
+                    <Upload className="w-3 h-3" /> Upload Proof
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleProofFileUpload(e, setExpProofImageUrl)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
                 <input
-                  type="number"
-                  required
-                  value={expAmount}
-                  onChange={(e) => setExpAmount(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1 font-mono font-bold"
+                  type="text"
+                  placeholder="https://... voucher or bill photo"
+                  value={expProofImageUrl}
+                  onChange={(e) => setExpProofImageUrl(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs mt-1"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition mt-2"
+                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition mt-2 cursor-pointer"
               >
                 Save Factory Expense
               </button>
@@ -910,107 +1220,383 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         </div>
       )}
 
-      {/* MODAL: Printable Tax Invoice */}
-      {viewInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="bg-white text-gray-900 rounded-2xl p-8 w-full max-w-2xl border border-gray-300 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between border-b pb-4">
+      {/* MODAL: Add Corporate Bank Account */}
+      {isAddBankOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-800 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-black text-sm">Add Corporate Bank Account / Wallet</h3>
+              <button onClick={() => setIsAddBankOpen(false)}>
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateBankSubmit} className="space-y-3 text-xs">
               <div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black">
-                    <Layers className="w-4 h-4" />
-                  </div>
-                  <h2 className="text-xl font-black tracking-tight text-gray-900">
-                    Sportswear Cloud Enterprises Ltd.
-                  </h2>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">
+                  Bank or Wallet Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Eastern Bank PLC (EBL) / Nagad Corporate"
+                  value={newBankName}
+                  onChange={(e) => setNewBankName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="104299..."
+                    value={newAccountNum}
+                    onChange={(e) => setNewAccountNum(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white font-mono mt-1"
+                  />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Plot 14, Sector 4, Banani HQ &bull; Tongi Sublimation Mill &bull; Mirpur Sewing Hub
-                </p>
-                <p className="text-[11px] text-gray-400">VAT Reg: BD-99120-SPORT &bull; accounts@sportswear.erp</p>
-              </div>
-
-              <div className="text-right">
-                <span className="font-mono text-base font-black text-indigo-600 block">{viewInvoice.invoiceNumber}</span>
-                <span className="text-xs text-gray-500">Date: {viewInvoice.createdAt.substring(0, 10)}</span>
-                <span className="block text-xs font-bold text-gray-600">Due: {viewInvoice.dueDate}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase block">Billed To Customer:</span>
-                <strong className="text-sm text-gray-900 block">{viewInvoice.customerName}</strong>
-                <span className="text-gray-600">Job Reference: {viewInvoice.orderNumber}</span>
-                <span className="block text-[11px] text-blue-600 font-bold uppercase mt-0.5">{viewInvoice.type} Account</span>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-gray-400 uppercase block">Payment Status:</span>
-                <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 uppercase">
-                  {viewInvoice.status.replace('_', ' ')}
-                </span>
-                <p className="text-[11px] text-gray-500 mt-1">{viewInvoice.paymentTerms}</p>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 font-bold text-gray-600 text-[11px]">
-                    <th className="p-3">Description</th>
-                    <th className="p-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="p-3">
-                      <strong>Custom Sublimated Team Kits & Jerseys</strong>
-                      <p className="text-[11px] text-gray-500">High-density sublimation print, customized player numbering, moisture-wicking fabric</p>
-                    </td>
-                    <td className="p-3 text-right font-mono font-bold">${viewInvoice.totalAmount}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end text-xs">
-              <div className="w-64 space-y-1.5 font-mono">
-                <div className="flex justify-between py-1 border-b">
-                  <span className="text-gray-500 font-sans">Total Billed:</span>
-                  <span className="font-bold">${viewInvoice.totalAmount}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b text-emerald-600 font-bold">
-                  <span className="font-sans">Advance Received:</span>
-                  <span>-${viewInvoice.paidAmount}</span>
-                </div>
-                <div className="flex justify-between py-1 text-sm font-black border-t-2 border-gray-900 text-amber-600">
-                  <span className="font-sans">Balance Due:</span>
-                  <span>${viewInvoice.dueAmount}</span>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">
+                    Opening Balance ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={newBankBalance}
+                    onChange={(e) => setNewBankBalance(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-emerald-400 font-bold mt-1"
+                  />
                 </div>
               </div>
-            </div>
-
-            <div className="border-t pt-4 flex items-center justify-between">
-              <span className="text-[11px] text-gray-400">Authorized by Accounts & Finance Dept.</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-gray-900 text-white font-bold text-xs hover:bg-gray-800 transition"
-                >
-                  Print / Download PDF
-                </button>
-                <button
-                  onClick={() => setViewInvoice(null)}
-                  className="px-4 py-2 rounded-xl bg-gray-200 text-gray-800 font-bold text-xs hover:bg-gray-300 transition"
-                >
-                  Close
-                </button>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">
+                    Branch Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newBranchName}
+                    onChange={(e) => setNewBranchName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">
+                    Account Type
+                  </label>
+                  <select
+                    value={newBankType}
+                    onChange={(e) => setNewBankType(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white mt-1"
+                  >
+                    <option value="bank">Commercial Bank</option>
+                    <option value="mobile_banking">Mobile Wallet (bKash/Nagad)</option>
+                    <option value="cash">Factory Cash Vault</option>
+                  </select>
+                </div>
               </div>
-            </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer"
+              >
+                Link Bank Account
+              </button>
+            </form>
           </div>
         </div>
       )}
+
+      {/* MODAL: Executive Printable Tax Invoice with Customer Portal Access & Privilege Stars */}
+      {viewInvoice && (() => {
+        const matchedCustomer = customers.find(
+          (c) =>
+            c.id === viewInvoice.customerId ||
+            c.name.toLowerCase() === viewInvoice.customerName.toLowerCase() ||
+            c.companyOrClub.toLowerCase() === viewInvoice.customerName.toLowerCase()
+        );
+        const matchedOrder = orders.find(
+          (o) => o.id === viewInvoice.orderId || o.orderNumber === viewInvoice.orderNumber
+        );
+        const returningRatio = matchedCustomer?.returningRatio ?? 92;
+        const starRating = matchedCustomer?.starRating ?? 5;
+        const privilegeTier = matchedCustomer?.privilegeTier ?? 'platinum_vip';
+        const discountPct = matchedCustomer?.discountPrivilegePercent ?? 10;
+        const portalCode = matchedCustomer?.portalAccessCode ?? `PORTAL-${viewInvoice.invoiceNumber.slice(-4)}-VIP`;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <div className="bg-white text-slate-900 rounded-3xl p-8 w-full max-w-3xl border border-slate-300 shadow-2xl space-y-6 my-auto max-h-[94vh] overflow-y-auto">
+              {/* Top Action Bar (Hidden in Print) */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 print:hidden">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-black text-xs border border-indigo-200">
+                    EXECUTIVE TAX INVOICE & PORTAL PASS
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Includes Customer Returning Ratio, Star Rating & Portal Credentials
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {onOpenClientPortal && (
+                    <button
+                      onClick={() => {
+                        setViewInvoice(null);
+                        onOpenClientPortal();
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Client Portal</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print / Save PDF</span>
+                  </button>
+                  <button
+                    onClick={() => setViewInvoice(null)}
+                    className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Letterhead Header */}
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4 border-b-2 border-slate-900 pb-5">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black">
+                      <Layers className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black tracking-tight text-slate-900 uppercase">
+                        RIDWEAR SPORTSWEAR MFG. LTD.
+                      </h2>
+                      <p className="text-[11px] font-bold text-emerald-700">
+                        3-Facility Custom Sublimation & Athletic Apparel Enterprise
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-2">
+                    <strong>HQ:</strong> House 42, Road 11, Banani, Dhaka &bull; <strong>Print Mill:</strong> Tongi BSCIC &bull; <strong>Sewing Factory:</strong> Mirpur-10
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    VAT Reg: BD-99120-SPORT &bull; Hotline: +880 1711-009988 &bull; Web: portal.ridwear.erp
+                  </p>
+                </div>
+
+                <div className="text-left sm:text-right bg-slate-50 p-3.5 rounded-2xl border border-slate-200 shrink-0">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                    COMMERCIAL TAX INVOICE
+                  </span>
+                  <span className="font-mono text-lg font-black text-indigo-700 block mt-0.5">
+                    {viewInvoice.invoiceNumber}
+                  </span>
+                  <span className="text-[11px] text-slate-600 block">
+                    Issue Date: <strong>{viewInvoice.createdAt.substring(0, 10)}</strong>
+                  </span>
+                  <span className="text-[11px] text-rose-600 font-bold block">
+                    Due Date: {viewInvoice.dueDate}
+                  </span>
+                </div>
+              </div>
+
+              {/* Billed To + Customer Loyalty & Privilege Tier Card */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                    Billed To Customer / Club:
+                  </span>
+                  <strong className="text-base font-black text-slate-900 block">
+                    {viewInvoice.customerName}
+                  </strong>
+                  {matchedCustomer?.companyOrClub && (
+                    <span className="text-xs font-bold text-slate-700 block">
+                      Org: {matchedCustomer.companyOrClub}
+                    </span>
+                  )}
+                  <span className="text-slate-600 block font-mono">
+                    Job Card Ref: <strong>{viewInvoice.orderNumber}</strong>
+                  </span>
+                  {matchedCustomer?.phone && (
+                    <span className="text-slate-600 block">Phone: {matchedCustomer.phone}</span>
+                  )}
+                  <div className="pt-1 flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold text-[10px] uppercase">
+                      {viewInvoice.type} Account
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase">
+                      {viewInvoice.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Premium Privilege & Returning Ratio Box */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-indigo-50 border-2 border-amber-300/80 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                      <Award className="w-3.5 h-3.5 text-amber-600" /> Customer Privilege & Loyalty Status
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] uppercase">
+                      {privilegeTier.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <div className="p-2 rounded-xl bg-white border border-amber-200 text-center">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase block">
+                        Returning Ratio
+                      </span>
+                      <span className="text-sm font-black text-emerald-700 font-mono">
+                        {returningRatio}%
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white border border-amber-200 text-center">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase block">
+                        Loyalty Stars
+                      </span>
+                      <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                        {Array.from({ length: 5 }).map((_, idx) => (
+                          <Star
+                            key={idx}
+                            className={`w-3 h-3 ${
+                              idx < starRating
+                                ? 'text-amber-500 fill-amber-400'
+                                : 'text-slate-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white border border-amber-200 text-center">
+                      <span className="text-[9px] text-slate-500 font-bold uppercase block">
+                        VIP Privilege
+                      </span>
+                      <span className="text-sm font-black text-indigo-700 font-mono">
+                        {discountPct}% OFF
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Itemized Garment Specification Table */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 text-white font-bold text-[11px] uppercase tracking-wider">
+                      <th className="p-3">Item & Technical Specification</th>
+                      <th className="p-3 text-center">Qty</th>
+                      <th className="p-3 text-right">Unit Price</th>
+                      <th className="p-3 text-right">Line Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="p-3.5">
+                        <strong className="text-slate-900 text-xs block">
+                          Custom Sublimated Team Sportswear — {matchedOrder?.teamOrClub || viewInvoice.customerName}
+                        </strong>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          Fabric: <strong>{matchedOrder?.fabricType || 'Micro-Eyelet 160 GSM'}</strong> &bull; Collar:{' '}
+                          <strong>{matchedOrder?.collarType || 'Athletic V-Neck'}</strong> &bull; Print: Full HD Calendar Sublimation (205°C)
+                        </p>
+                        {matchedOrder?.sizeBreakdown && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {Object.entries(matchedOrder.sizeBreakdown).map(
+                              ([sz, q]) =>
+                                Number(q) > 0 && (
+                                  <span
+                                    key={sz}
+                                    className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono font-bold text-[10px] text-slate-800"
+                                  >
+                                    {sz}: {q}
+                                  </span>
+                                )
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-center font-mono font-bold text-slate-900">
+                        {matchedOrder?.totalQuantity || 30} Sets
+                      </td>
+                      <td className="p-3.5 text-right font-mono text-slate-700">
+                        ${matchedOrder?.unitPrice || (viewInvoice.totalAmount / 30).toFixed(2)}
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-black text-slate-900">
+                        ${viewInvoice.totalAmount.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Customer Portal Access Box + Totals */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+                {/* Customer Portal Access Card */}
+                <div className="sm:col-span-7 p-4 rounded-2xl bg-slate-900 text-white space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-emerald-400" />
+                      <span className="font-black text-xs uppercase tracking-wider text-emerald-400">
+                        24/7 B2B Customer Portal Access Pass
+                      </span>
+                    </div>
+                    <QrCode className="w-5 h-5 text-slate-300" />
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Use your dedicated Portal Access Key below to track live factory stages (Design, Print, Sewing), download ledger statements, chat directly with Marketing, and claim your <strong>{discountPct}% {privilegeTier.replace('_', ' ').toUpperCase()}</strong> repeat-order privilege.
+                  </p>
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 font-mono text-xs font-black text-emerald-300">
+                      ACCESS KEY: {portalCode}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Assigned Handler: {viewInvoice.assignedEmployeeName || 'Tanvir Ahmed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Financial Totals */}
+                <div className="sm:col-span-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
+                  <div className="flex justify-between py-1 border-b border-slate-200">
+                    <span className="text-slate-500 font-sans">Gross Invoice Total:</span>
+                    <span className="font-bold text-slate-900">${viewInvoice.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200 text-emerald-700 font-bold">
+                    <span className="font-sans">Advance / Paid Amount:</span>
+                    <span>-${viewInvoice.paidAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 text-sm font-black border-t-2 border-slate-900 text-amber-700">
+                    <span className="font-sans">Net Balance Due:</span>
+                    <span>${viewInvoice.dueAmount.toLocaleString()}</span>
+                  </div>
+                  <p className="text-[10px] font-sans text-slate-500 pt-1">
+                    Terms: {viewInvoice.paymentTerms}
+                  </p>
+                </div>
+              </div>
+
+              {/* Signatures Footer */}
+              <div className="pt-6 border-t border-slate-200 grid grid-cols-3 gap-4 text-center text-[11px] text-slate-500">
+                <div className="pt-6 border-t border-slate-300">Customer / Club Representative</div>
+                <div className="pt-6 border-t border-slate-300">Marketing & CRM Executive</div>
+                <div className="pt-6 border-t border-slate-300 font-bold text-slate-800">
+                  Authorized Accounts Signatory
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

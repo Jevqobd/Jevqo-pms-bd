@@ -3,24 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   TeamMessage,
-  TeamChannel,
   TeamChannelId,
   UserRole,
   Order,
   Invoice,
   ROLE_CONFIGS,
+  MarketingFaqItem,
 } from '../types/erp';
-import { INITIAL_TEAM_CHANNELS } from '../services/seedData';
+import { INITIAL_TEAM_CHANNELS, INITIAL_MARKETING_FAQS } from '../services/seedData';
 import { ErpStorageService } from '../services/erpStorageService';
 import { playDelegationChime, playShortageAlertSound } from '../utils/soundEffects';
+import { useFormDraft } from '../utils/useFormDraft';
 import {
   MessageSquare,
   X,
   Send,
-  Paperclip,
   Mic,
   Image as ImageIcon,
   Building2,
@@ -31,20 +31,19 @@ import {
   Scissors,
   ShieldAlert,
   Hash,
-  AtSign,
   FileText,
-  Play,
   Square,
   Check,
   CheckCheck,
-  ChevronRight,
   ExternalLink,
   Maximize2,
   Minimize2,
   Search,
-  BellRing,
   Phone,
   Layers,
+  Pin,
+  Zap,
+  HelpCircle,
 } from 'lucide-react';
 
 interface InternalChatDrawerProps {
@@ -54,6 +53,7 @@ interface InternalChatDrawerProps {
   currentUserName: string;
   orders: Order[];
   invoices: Invoice[];
+  faqs?: MarketingFaqItem[];
   onOpenOrder: (order: Order) => void;
   onOpenInvoice?: (invoice: Invoice) => void;
   onNavigateTab: (tab: any) => void;
@@ -68,6 +68,7 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
   currentUserName,
   orders,
   invoices,
+  faqs = INITIAL_MARKETING_FAQS,
   onOpenOrder,
   onOpenInvoice,
   onNavigateTab,
@@ -77,7 +78,19 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
   if (!isOpen) return null;
 
   const [activeChannelId, setActiveChannelId] = useState<TeamChannelId>('all-factory');
-  const [inputText, setInputText] = useState('');
+  const {
+    draft: chatDraft,
+    updateField: updateChatDraft,
+    clearDraft: clearChatDraft,
+  } = useFormDraft('internal_chat_composer_draft', {
+    inputText: '',
+  });
+  const inputText = chatDraft.inputText;
+  const setInputText = (val: string | ((prev: string) => string)) => {
+    const next = typeof val === 'function' ? val(inputText) : val;
+    updateChatDraft('inputText', next);
+  };
+
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceRecordSeconds, setVoiceRecordSeconds] = useState(0);
   const [selectedAttachment, setSelectedAttachment] = useState<{
@@ -86,16 +99,19 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
     url: string;
   } | null>(null);
 
-  // Resizable state
+  // Fast search, pinned & reaction states
   const [chatWidth, setChatWidth] = useState<'normal' | 'wide' | 'max'>('normal');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showPinnedOnly, setShowPinnedOnly] = useState(false);
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([]);
+  const [reactionsMap, setReactionsMap] = useState<Record<string, Record<string, number>>>({});
   const [isInvoiceMentionOpen, setIsInvoiceMentionOpen] = useState(false);
   const [isOrderMentionOpen, setIsOrderMentionOpen] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
+  const [isQuickReplyOpen, setIsQuickReplyOpen] = useState(false);
   const [isSimulatedTyping, setIsSimulatedTyping] = useState(false);
   const [phoneAlertSent, setPhoneAlertSent] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const timerRef = useRef<number | null>(null);
 
   // Active Team Members Roster
   const teamMembers = [
@@ -108,7 +124,6 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
     { name: 'Kamrul Islam', role: 'hr_manager', dept: 'HR & Ops', status: 'offline', phone: '+880 1777-890123' },
   ];
 
-  // Filter channels based on RBAC: management-board only for owner & accountant
   const channels = INITIAL_TEAM_CHANNELS.filter((ch) => {
     if (ch.id === 'management-board') {
       return currentRole === 'owner' || currentRole === 'accountant';
@@ -117,13 +132,27 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
   });
 
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
-  const channelMessages = messages.filter((m) => m.channelId === activeChannelId);
+
+  const channelMessages = useMemo(() => {
+    return messages
+      .filter((m) => m.channelId === activeChannelId)
+      .filter((m) => {
+        if (showPinnedOnly && !pinnedMessageIds.includes(m.id)) return false;
+        if (
+          searchQuery.trim() &&
+          !m.content.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !m.senderName.toLowerCase().includes(searchQuery.toLowerCase())
+        ) {
+          return false;
+        }
+        return true;
+      });
+  }, [messages, activeChannelId, showPinnedOnly, pinnedMessageIds, searchQuery]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [channelMessages.length, activeChannelId]);
 
-  // Voice note simulator timer
   useEffect(() => {
     if (isRecordingVoice) {
       setVoiceRecordSeconds(0);
@@ -134,27 +163,45 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
     }
   }, [isRecordingVoice]);
 
-  // Occasional typing indicator simulation
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSimulatedTyping(true);
-      setTimeout(() => setIsSimulatedTyping(false), 3500);
-    }, 8000);
+      setTimeout(() => setIsSimulatedTyping(false), 3000);
+    }, 9000);
     return () => clearTimeout(timer);
   }, [activeChannelId]);
+
+  const togglePinMessage = (msgId: string) => {
+    setPinnedMessageIds((prev) =>
+      prev.includes(msgId) ? prev.filter((id) => id !== msgId) : [...prev, msgId]
+    );
+  };
+
+  const addReaction = (msgId: string, emoji: string) => {
+    setReactionsMap((prev) => {
+      const msgReacts = prev[msgId] || {};
+      return {
+        ...prev,
+        [msgId]: {
+          ...msgReacts,
+          [emoji]: (msgReacts[emoji] || 0) + 1,
+        },
+      };
+    });
+  };
 
   const handleSendMessage = async () => {
     const text = inputText.trim();
     if (!text && !selectedAttachment && !isRecordingVoice) return;
 
-    // Detect tags
     const orderMatches = text.match(/#SW-\d{4}-\d+/gi) || [];
     const taggedOrders = orderMatches.map((m) => m.replace('#', '').toUpperCase());
 
     const invoiceMatches = text.match(/#INV-\d{4}-\d+/gi) || [];
     const taggedInvoices = invoiceMatches.map((m) => m.replace('#', '').toUpperCase());
 
-    const deptMatches = text.match(/@(PrintFactory|SewingFactory|DesignTeam|Marketing|Accounts|All)/gi) || [];
+    const deptMatches =
+      text.match(/@(PrintFactory|SewingFactory|DesignTeam|Marketing|Accounts|All)/gi) || [];
     const taggedDepartments = deptMatches.map((d) => d);
 
     let finalAttachment = selectedAttachment;
@@ -173,7 +220,9 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
       senderId: `user-${currentRole}`,
       senderName: currentUserName || ROLE_CONFIGS[currentRole]?.shortLabel || 'Operator',
       senderRole: currentRole,
-      content: text || (finalAttachment?.type === 'audio' ? '🎤 Sent a voice note' : '📎 Sent an attachment'),
+      content:
+        text ||
+        (finalAttachment?.type === 'audio' ? '🎤 Sent a voice note' : '📎 Sent an attachment'),
       status: 'read',
       taggedOrders,
       taggedInvoices,
@@ -196,7 +245,7 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
       playDelegationChime();
     }
 
-    setInputText('');
+    clearChatDraft();
     setSelectedAttachment(null);
   };
 
@@ -230,7 +279,7 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
   const getWidthClass = () => {
     if (chatWidth === 'max') return 'w-full sm:w-[860px]';
     if (chatWidth === 'wide') return 'w-full sm:w-[660px]';
-    return 'w-full sm:w-[480px]';
+    return 'w-full sm:w-[500px]';
   };
 
   const getChannelIcon = (iconName: string) => {
@@ -254,26 +303,25 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
 
   return (
     <div
-      className={`fixed inset-y-0 right-0 z-50 ${getWidthClass()} bg-slate-900 border-l border-slate-700/80 shadow-2xl flex flex-col backdrop-blur-xl transition-all duration-300 animate-in slide-in-from-right-4`}
+      className={`fixed inset-y-0 right-0 z-50 ${getWidthClass()} bg-slate-900 border-l border-slate-700/80 shadow-2xl flex flex-col backdrop-blur-xl transition-all duration-200 animate-in slide-in-from-right-4`}
     >
       {/* 1. Resizable Floating Drawer Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-800/90 border-b border-slate-700/80 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400">
-            <MessageSquare className="w-4 h-4" />
+            <Zap className="w-4 h-4" />
           </div>
           <div>
             <h3 className="text-xs font-black text-white flex items-center gap-2">
-              Multi-Department Team Comms
+              Fast Multi-Department Team Comms
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </h3>
             <p className="text-[10px] text-slate-400">
-              Live floor messaging, voice notes, and instant #INV / #SW link cards
+              Instant #JobCard & #Invoice deep-links, reactions, search & Marketing Q&A snippets
             </p>
           </div>
         </div>
 
-        {/* Resizing & Controls */}
         <div className="flex items-center gap-1">
           <button
             onClick={() =>
@@ -366,17 +414,29 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
         })}
       </div>
 
-      {/* Active Channel Sub-Bar */}
-      <div className="px-4 py-1.5 bg-slate-800/30 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400 shrink-0">
-        <div className="flex items-center gap-1.5 truncate">
-          <Hash className="w-3.5 h-3.5 text-slate-500" />
-          <span className="font-bold text-slate-200">{activeChannel.name}</span>
-          <span className="text-slate-500">•</span>
-          <span className="truncate">{activeChannel.description}</span>
+      {/* Fast Search & Pinned Filter Sub-Bar */}
+      <div className="px-3 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2 text-xs shrink-0">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search in #${activeChannel.name} (#SW, #INV, staff)...`}
+            className="w-full pl-8 pr-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-white text-[11px] focus:outline-none focus:border-emerald-500"
+          />
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 font-mono">
-          {activeChannel.departmentTag}
-        </span>
+        <button
+          onClick={() => setShowPinnedOnly(!showPinnedOnly)}
+          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border cursor-pointer ${
+            showPinnedOnly
+              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+              : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+          }`}
+        >
+          <Pin className="w-3 h-3" />
+          <span>Pinned ({pinnedMessageIds.length})</span>
+        </button>
       </div>
 
       {/* 4. Messages Scroll View */}
@@ -384,11 +444,13 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
         {channelMessages.map((msg) => {
           const isMe = msg.senderRole === currentRole;
           const senderConfig = ROLE_CONFIGS[msg.senderRole];
+          const isPinned = pinnedMessageIds.includes(msg.id);
+          const msgReactions = reactionsMap[msg.id] || {};
 
           return (
             <div
               key={msg.id}
-              className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+              className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1 group`}
             >
               {/* Sender Title Bar */}
               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 px-1">
@@ -403,19 +465,32 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                 </span>
                 <span className="text-slate-600">•</span>
                 <span>
-                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
+                <button
+                  onClick={() => togglePinMessage(msg.id)}
+                  className={`ml-1 p-0.5 rounded hover:text-amber-400 cursor-pointer ${
+                    isPinned ? 'text-amber-400' : 'opacity-0 group-hover:opacity-100 text-slate-500'
+                  }`}
+                  title="Pin / Unpin Message"
+                >
+                  <Pin className="w-3 h-3" />
+                </button>
               </div>
 
               {/* Message Bubble */}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs shadow-md border ${
-                  isMe
+                className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-xs shadow-md border ${
+                  isPinned
+                    ? 'border-amber-500/50 bg-amber-950/20'
+                    : isMe
                     ? 'bg-emerald-600/20 border-emerald-500/40 text-slate-100 rounded-tr-none'
                     : 'bg-slate-800/90 border-slate-700 text-slate-200 rounded-tl-none'
                 }`}
               >
-                {/* Content with highlighted tag mentions */}
                 <div className="leading-relaxed whitespace-pre-wrap">
                   {msg.content.split(' ').map((word, i) => {
                     if (word.startsWith('#SW-')) {
@@ -460,7 +535,9 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                 {msg.taggedInvoices && msg.taggedInvoices.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-slate-700/60 space-y-1">
                     {msg.taggedInvoices.map((invNum) => {
-                      const inv = invoices.find((i) => i.invoiceNumber.toUpperCase() === invNum.toUpperCase());
+                      const inv = invoices.find(
+                        (i) => i.invoiceNumber.toUpperCase() === invNum.toUpperCase()
+                      );
                       return (
                         <div
                           key={invNum}
@@ -471,7 +548,7 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                             <span className="font-bold text-white">{invNum}</span>
                             {inv && (
                               <span className="text-slate-400">
-                                • {inv.customerName} (৳{inv.totalAmount.toLocaleString()})
+                                • {inv.customerName} (${inv.totalAmount.toLocaleString()})
                               </span>
                             )}
                           </div>
@@ -487,21 +564,46 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                   </div>
                 )}
 
-                {/* Delivery & Read Receipts */}
-                <div className="flex items-center justify-end gap-1 mt-1.5 text-[10px] text-slate-400">
-                  <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {isMe && (
-                    <span className="text-cyan-400 font-bold" title="Read & Delivered to Floor">
-                      <CheckCheck className="w-3.5 h-3.5 inline" />
+                {/* Quick Reactions & Delivery Receipt Bar */}
+                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-white/5 text-[10px] text-slate-400">
+                  <div className="flex items-center gap-1">
+                    {(['👍', '✅', '🔥', '🚨'] as const).map((emo) => {
+                      const cnt = msgReactions[emo] || 0;
+                      return (
+                        <button
+                          key={emo}
+                          onClick={() => addReaction(msg.id, emo)}
+                          className={`px-1.5 py-0.2 rounded-full border text-[10px] transition cursor-pointer ${
+                            cnt > 0
+                              ? 'bg-emerald-500/20 border-emerald-500/40 text-white font-bold'
+                              : 'bg-slate-900/60 border-slate-700/60 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          {emo} {cnt > 0 ? cnt : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span>
+                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
-                  )}
+                    {isMe && (
+                      <span className="text-cyan-400 font-bold" title="Read & Delivered">
+                        <CheckCheck className="w-3.5 h-3.5 inline" />
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
 
-        {/* Real-time Typing Simulator */}
         {isSimulatedTyping && (
           <div className="flex items-center gap-2 text-xs text-slate-400 italic px-2 animate-in fade-in">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -512,12 +614,14 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 5. Invoices & Job Cards Quick-Mention Trays */}
+      {/* 5. Quick Mention & Marketing Playbook Trays */}
       {isInvoiceMentionOpen && (
-        <div className="p-3 bg-slate-900 border-t border-slate-800 max-h-48 overflow-y-auto space-y-1 text-xs">
+        <div className="p-3 bg-slate-900 border-t border-slate-800 max-h-44 overflow-y-auto space-y-1 text-xs">
           <div className="flex items-center justify-between pb-1 text-slate-400 text-[10px] font-bold uppercase">
             <span>Select Invoice to Mention:</span>
-            <button onClick={() => setIsInvoiceMentionOpen(false)}><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setIsInvoiceMentionOpen(false)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           {invoices.map((inv) => (
             <button
@@ -533,9 +637,66 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                 <span className="text-white text-xs block">{inv.customerName}</span>
               </div>
               <div className="text-right font-mono text-[11px]">
-                <span className="text-white font-bold">৳{inv.totalAmount.toLocaleString()}</span>
-                <span className="text-amber-400 block text-[10px]">Due: ৳{inv.dueAmount.toLocaleString()}</span>
+                <span className="text-white font-bold">${inv.totalAmount.toLocaleString()}</span>
+                <span className="text-amber-400 block text-[10px]">
+                  Due: ${inv.dueAmount.toLocaleString()}
+                </span>
               </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isOrderMentionOpen && (
+        <div className="p-3 bg-slate-900 border-t border-slate-800 max-h-44 overflow-y-auto space-y-1 text-xs">
+          <div className="flex items-center justify-between pb-1 text-slate-400 text-[10px] font-bold uppercase">
+            <span>Select Job Card to Mention:</span>
+            <button onClick={() => setIsOrderMentionOpen(false)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {orders.map((ord) => (
+            <button
+              key={ord.id}
+              onClick={() => {
+                insertMention(`#${ord.orderNumber}`);
+                setIsOrderMentionOpen(false);
+              }}
+              className="w-full p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 flex items-center justify-between text-left cursor-pointer"
+            >
+              <div>
+                <span className="font-mono font-bold text-indigo-400">{ord.orderNumber}</span>
+                <span className="text-white text-xs block">
+                  {ord.teamOrClub} • {ord.clientName}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                {ord.totalQuantity} pcs ({ord.stage.replace(/_/g, ' ')})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isQuickReplyOpen && (
+        <div className="p-3 bg-slate-900 border-t border-slate-800 max-h-48 overflow-y-auto space-y-1.5 text-xs">
+          <div className="flex items-center justify-between pb-1 text-amber-400 text-[10px] font-bold uppercase">
+            <span>Quick Marketing & SOP Reply Snippets:</span>
+            <button onClick={() => setIsQuickReplyOpen(false)} className="cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {faqs.map((faq) => (
+            <button
+              key={faq.id}
+              onClick={() => {
+                setInputText(faq.answerEn);
+                setIsQuickReplyOpen(false);
+              }}
+              className="w-full p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left cursor-pointer space-y-0.5"
+            >
+              <div className="font-bold text-white text-[11px]">{faq.question}</div>
+              <div className="text-[10px] text-slate-400 truncate">{faq.answerEn}</div>
             </button>
           ))}
         </div>
@@ -543,45 +704,65 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
 
       {/* Quick Mention Suggestions Chips */}
       <div className="px-3 py-1.5 bg-slate-900 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px] no-scrollbar shrink-0">
-        <span className="text-slate-500 font-bold uppercase text-[9px] shrink-0">Mention:</span>
         <button
-          onClick={() => setIsInvoiceMentionOpen(!isInvoiceMentionOpen)}
+          onClick={() => {
+            setIsOrderMentionOpen(!isOrderMentionOpen);
+            setIsInvoiceMentionOpen(false);
+            setIsQuickReplyOpen(false);
+          }}
+          className="btn-press px-2 py-0.5 rounded-full bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/60 font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+        >
+          <Layers className="w-3 h-3" />
+          <span>#Job Card</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setIsInvoiceMentionOpen(!isInvoiceMentionOpen);
+            setIsOrderMentionOpen(false);
+            setIsQuickReplyOpen(false);
+          }}
           className="btn-press px-2 py-0.5 rounded-full bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
         >
           <FileText className="w-3 h-3" />
-          <span>#Mention Invoice</span>
+          <span>#Invoice</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setIsQuickReplyOpen(!isQuickReplyOpen);
+            setIsInvoiceMentionOpen(false);
+            setIsOrderMentionOpen(false);
+          }}
+          className="btn-press px-2 py-0.5 rounded-full bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/60 font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+        >
+          <HelpCircle className="w-3 h-3" />
+          <span>Quick Q&A Script</span>
         </button>
 
         <button
           onClick={() => insertMention('@PrintFactory')}
-          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 whitespace-nowrap"
+          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 whitespace-nowrap cursor-pointer"
         >
           @PrintFactory
         </button>
         <button
           onClick={() => insertMention('@SewingFactory')}
-          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 whitespace-nowrap"
+          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 whitespace-nowrap cursor-pointer"
         >
           @SewingFactory
         </button>
         <button
           onClick={() => insertMention('@DesignTeam')}
-          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-pink-300 border border-pink-500/30 whitespace-nowrap"
+          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-pink-300 border border-pink-500/30 whitespace-nowrap cursor-pointer"
         >
           @DesignTeam
-        </button>
-        <button
-          onClick={() => insertMention('@Accounts')}
-          className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 whitespace-nowrap"
-        >
-          @Accounts
         </button>
       </div>
 
       {/* Input Composer */}
       <div className="p-3 bg-slate-900 border-t border-slate-800 shrink-0">
         <div className="flex items-center gap-2">
-          {/* Attachment buttons */}
           <button
             title="Attach mockup or proof photo"
             onClick={() =>
@@ -596,7 +777,6 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
             <ImageIcon className="w-4 h-4" />
           </button>
 
-          {/* Voice recorder button */}
           <button
             title={isRecordingVoice ? 'Stop recording' : 'Hold / click to record voice note'}
             onClick={() => setIsRecordingVoice(!isRecordingVoice)}
@@ -606,10 +786,13 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            {isRecordingVoice ? <Square className="w-4 h-4 fill-current" /> : <Mic className="w-4 h-4" />}
+            {isRecordingVoice ? (
+              <Square className="w-4 h-4 fill-current" />
+            ) : (
+              <Mic className="w-4 h-4" />
+            )}
           </button>
 
-          {/* Text input */}
           <input
             type="text"
             value={inputText}
@@ -617,11 +800,10 @@ export const InternalChatDrawer: React.FC<InternalChatDrawerProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSendMessage();
             }}
-            placeholder={`Message #${activeChannel.name}... Mention @Dept or #INV-2026-`}
+            placeholder={`Fast message #${activeChannel.name}... (Auto-draft saved)`}
             className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
 
-          {/* Send button */}
           <button
             onClick={handleSendMessage}
             className="btn-press p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-md transition-colors cursor-pointer"

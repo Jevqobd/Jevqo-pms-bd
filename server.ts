@@ -33,15 +33,22 @@ const ai = new GoogleGenAI({
 // Role system instructions for Multi-Turn ERP Chatbot
 const CHATBOT_ROLE_SYSTEM_PROMPTS: Record<string, string> = {
   operations_director: `You are the Executive Operations Director and Senior Manufacturing Architect for a cloud-connected sportswear enterprise operating across Head Office, Print Factory, and Sewing Factory. You advise on factory capacity, gross margins, delivery lead times, bottleneck mitigation, and workflow orchestration. Keep answers authoritative, practical, and grounded in athletic garment manufacturing.`,
+  marketing_strategist: `You are the Head of B2B/B2C Sportswear Marketing & Customer Success at Ridwear Sportswear Mfg. You write persuasive, clear, bilingual (English and বাংলা) customer replies for WhatsApp/Email, explain fabric GSM options (160 GSM Micro-Eyelet, 180 GSM Interlock, Dot Mesh), quote turnaround times, and highlight Customer Returning Ratio & VIP Privilege Star discounts.`,
   prepress_engineer: `You are the Pre-Press Pattern & Nesting Specialist (Head Office Design Team 2). You specialize in Gerber/Optitex CAD nesting on 1.52m / 1.60m sublimation rolls, shrinkage allowance (3-5% for polyester), bleed margins, vector resolution standards (300 DPI CMYK), and size grading matrices across S, M, L, XL, 2XL.`,
   print_specialist: `You are the Sublimation & Heat Press Technical Lead (Print Factory). You advise on calendar rotary press temperatures (195°C-205°C), dwell speed/tension, transfer paper GSM (70-90 GSM), CMYK UltraChrome ink profiling, humidity controls, and scorch prevention.`,
   sewing_qc_supervisor: `You are the Sewing Line Floor Master & Quality Control Inspector (Sewing Factory). You inspect 4-thread overlock stitching, flatlock seams, collar ribbing attachment, bundle tracking, defect diagnosis, and raising priority shortage tickets for burnt/cut garment panels.`,
 };
 
-// 1. Multi-Turn Multi-Role Chat Endpoint with Google Search Grounding
+// 1. Multi-Turn Multi-Role Chat Endpoint with Google Search Grounding & Live ERP Context
 app.post('/api/gemini/chat', async (req, res) => {
   try {
-    const { messages, role = 'operations_director', modelChoice = 'gemini-3.8-flash', enableSearch = false } = req.body;
+    const {
+      messages,
+      role = 'operations_director',
+      modelChoice = 'gemini-3.8-flash',
+      enableSearch = false,
+      erpContext,
+    } = req.body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -50,12 +57,15 @@ app.post('/api/gemini/chat', async (req, res) => {
     if (!apiKey) {
       // Deterministic simulation fallback
       return res.json({
-        text: `[ERP Copilot Simulation] As ${role.replace('_', ' ')}, I have reviewed your manufacturing parameters. All physical facilities (Head Office, Print Factory, Sewing Factory) are synchronized.`,
+        text: `[ERP Copilot Simulation] As ${role.replace('_', ' ')}, I have reviewed your live ERP telemetry (${erpContext?.activeOrdersCount ?? 0} active orders, ${erpContext?.openShortageTickets?.length ?? 0} shortage tickets, ${erpContext?.lowStockMaterials?.length ?? 0} low-stock items). All 3 facilities (Head Office, Print Factory, Sewing Factory) are synchronized.`,
         groundingSources: enableSearch ? ['https://fifa.com/equipment-regulations', 'https://sportswear-standards.org'] : undefined,
       });
     }
 
-    const systemInstruction = CHATBOT_ROLE_SYSTEM_PROMPTS[role] || CHATBOT_ROLE_SYSTEM_PROMPTS.operations_director;
+    const baseInstruction = CHATBOT_ROLE_SYSTEM_PROMPTS[role] || CHATBOT_ROLE_SYSTEM_PROMPTS.operations_director;
+    const systemInstruction = erpContext
+      ? `${baseInstruction}\n\nLIVE ERP TELEMETRY SNAPSHOT: ${JSON.stringify(erpContext)}`
+      : baseInstruction;
 
     // Model selection rules from skill:
     // Complex tasks: gemini-4-argon; Fast tasks: gemini-3.1-flash-lite; General / Search: gemini-3.8-flash

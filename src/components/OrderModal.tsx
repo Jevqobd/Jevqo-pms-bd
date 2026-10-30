@@ -118,6 +118,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              title="Print or Save Customer Approval PDF"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Approval PDF</span>
+            </button>
+
             {onOpenQrBundleModal && (
               <button
                 onClick={() => onOpenQrBundleModal(order)}
@@ -224,12 +233,39 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                   <h3 className="text-base font-black text-gray-900 dark:text-white capitalize">
                     {order.stage.replace(/_/g, ' ')}
                   </h3>
-                  <p className="text-xs text-gray-600 dark:text-gray-300">
-                    Physical Location:{' '}
-                    <span className="font-bold uppercase text-indigo-700 dark:text-indigo-300">
-                      {order.currentLocation.replace('_', ' ')}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <span>
+                      Location:{' '}
+                      <strong className="uppercase text-indigo-700 dark:text-indigo-300">
+                        {order.currentLocation.replace('_', ' ')}
+                      </strong>
                     </span>
-                  </p>
+                    {order.collarType && (
+                      <span>
+                        • Collar:{' '}
+                        <strong className="uppercase text-emerald-600 dark:text-emerald-400">
+                          {order.collarType.replace('_', ' ')}
+                        </strong>
+                      </span>
+                    )}
+                    {order.shorts?.enabled && (
+                      <span>
+                        • Shorts:{' '}
+                        <strong className="text-indigo-600 dark:text-indigo-400">
+                          {order.shorts.quantity} pcs ({order.shorts.hasPockets ? 'With Pockets' : 'No Pockets'},{' '}
+                          {order.shorts.hasInnerLiner ? 'With Liner' : 'No Liner'})
+                        </strong>
+                      </span>
+                    )}
+                    {order.assignedToEmployeeName && (
+                      <span>
+                        • Dedicated Staff:{' '}
+                        <strong className="text-amber-600 dark:text-amber-400">
+                          {order.assignedToEmployeeName}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Shortage Button for Sewing Factory */}

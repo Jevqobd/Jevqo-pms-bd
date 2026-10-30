@@ -42,6 +42,11 @@ import {
   Plus,
   Languages,
   CheckCircle2,
+  FileText,
+  BookOpen,
+  Star,
+  Truck,
+  FlaskConical,
 } from 'lucide-react';
 import { isAudioEnabled, setAudioEnabled } from '../utils/soundEffects';
 
@@ -49,11 +54,16 @@ export type NavTab =
   | 'dashboard_tasks'
   | 'orders'
   | 'head_office'
+  | 'customers_crm'
+  | 'product_dev_samples'
+  | 'vendors_suppliers'
   | 'accounting'
   | 'hr_payroll'
+  | 'users_employees'
   | 'inventory'
+  | 'documents_center'
+  | 'guidelines_sop'
   | '3d_studio'
-  | 'mockup_studio'
   | 'print_floor'
   | 'sewing_floor'
   | 'shortages'
@@ -64,6 +74,7 @@ interface SidebarProps {
   currentRole: UserRole;
   activeTab: NavTab;
   language: Language;
+  customModuleNames?: Record<string, string>;
   onSelectTab: (tab: NavTab) => void;
   onToggleLanguage: () => void;
   onOpenRoleSwitcher: () => void;
@@ -82,6 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentRole,
   activeTab,
   language,
+  customModuleNames = {},
   onSelectTab,
   onToggleLanguage,
   onOpenRoleSwitcher,
@@ -111,14 +123,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     switch (tab) {
       case 'dashboard_tasks':
-        return true; // Everyone sees Dashboard & Tasks!
+      case 'guidelines_sop':
+        return true; // Everyone sees Dashboard, Tasks & Guidelines!
       case 'orders':
         return currentRole !== 'floor_worker';
       case 'head_office':
-        return currentRole === 'marketing';
+      case 'customers_crm':
+        return currentRole === 'marketing' || currentRole === 'accountant';
       case 'accounting':
         return currentRole === 'accountant' || currentRole === 'marketing';
+      case 'documents_center':
+        return currentRole !== 'floor_worker';
       case 'hr_payroll':
+      case 'users_employees':
         return (
           currentRole === 'hr_manager' ||
           currentRole === 'accountant' ||
@@ -126,9 +143,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           currentRole === 'sewing_factory'
         );
       case 'inventory':
-        return currentRole === 'print_factory' || currentRole === 'sewing_factory';
+      case 'vendors_suppliers':
+        return (
+          currentRole === 'print_factory' ||
+          currentRole === 'sewing_factory' ||
+          currentRole === 'accountant' ||
+          currentRole === 'marketing'
+        );
+      case 'product_dev_samples':
+        return (
+          currentRole === 'design_mockup' ||
+          currentRole === 'design_pattern' ||
+          currentRole === 'marketing' ||
+          currentRole === 'print_factory' ||
+          currentRole === 'sewing_factory'
+        );
       case '3d_studio':
-      case 'mockup_studio':
         return currentRole === 'design_mockup' || currentRole === 'design_pattern';
       case 'print_floor':
         return currentRole === 'print_factory';
@@ -154,10 +184,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     category: 'core' | 'design' | 'finance' | 'workforce';
   }
 
+  const resolveLabel = (id: NavTab, fallback: string) => {
+    return customModuleNames?.[id] || fallback;
+  };
+
   const allItems: NavItem[] = [
     {
       id: 'dashboard_tasks',
-      label: getTranslation('navDashboardTasks', language),
+      label: resolveLabel('dashboard_tasks', getTranslation('navDashboardTasks', language)),
       icon: <LayoutDashboard className="w-4 h-4" />,
       badge: 'Active',
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
@@ -165,51 +199,78 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'orders',
-      label: getTranslation('navOrders', language),
+      label: resolveLabel('orders', getTranslation('navOrders', language)),
       icon: <Layers className="w-4 h-4" />,
       category: 'core',
     },
     {
       id: 'head_office',
-      label: getTranslation('navHeadOffice', language),
+      label: resolveLabel('head_office', getTranslation('navHeadOffice', language)),
       icon: <Building2 className="w-4 h-4" />,
       category: 'core',
     },
     {
+      id: 'customers_crm',
+      label: resolveLabel(
+        'customers_crm',
+        language === 'bn' ? 'গ্রাহক তালিকা ও মার্কেটিং গাইড' : 'Customer List & Playbook'
+      ),
+      icon: <Star className="w-4 h-4" />,
+      badge: 'VIP',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+      category: 'core',
+    },
+    {
       id: 'print_floor',
-      label: getTranslation('navPrintFloor', language),
+      label: resolveLabel('print_floor', getTranslation('navPrintFloor', language)),
       icon: <Printer className="w-4 h-4" />,
       category: 'core',
     },
     {
       id: 'sewing_floor',
-      label: getTranslation('navSewingFloor', language),
+      label: resolveLabel('sewing_floor', getTranslation('navSewingFloor', language)),
       icon: <Scissors className="w-4 h-4" />,
       category: 'core',
     },
     {
       id: 'shortages',
-      label: getTranslation('navShortages', language),
+      label: resolveLabel('shortages', getTranslation('navShortages', language)),
       icon: <AlertTriangle className="w-4 h-4" />,
       badge: openShortages > 0 ? openShortages : undefined,
       badgeColor: 'bg-rose-500 text-white animate-pulse',
       category: 'core',
     },
     {
+      id: 'product_dev_samples',
+      label: resolveLabel(
+        'product_dev_samples',
+        language === 'bn' ? 'পণ্য উন্নয়ন ও স্যাম্পল ল্যাব' : 'Product Dev & Samples'
+      ),
+      icon: <FlaskConical className="w-4 h-4" />,
+      badge: 'NPD/BOM',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
+      category: 'design',
+    },
+    {
       id: '3d_studio',
-      label: getTranslation('nav3dStudio', language),
+      label: resolveLabel('3d_studio', getTranslation('nav3dStudio', language)),
       icon: <Shirt className="w-4 h-4" />,
       category: 'design',
     },
     {
-      id: 'mockup_studio',
-      label: getTranslation('navMockupStudio', language),
-      icon: <Wand2 className="w-4 h-4" />,
-      category: 'design',
+      id: 'vendors_suppliers',
+      label: resolveLabel(
+        'vendors_suppliers',
+        language === 'bn' ? 'ভেন্ডর ও সাপ্লায়ার (PO/GRN)' : 'Vendors & Suppliers'
+      ),
+      icon: <Truck className="w-4 h-4" />,
+      badge: 'PO/GRN',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+      category: 'finance',
     },
     {
       id: 'accounting',
-      label: getTranslation('navAccounting', language),
+      label: resolveLabel('accounting', getTranslation('navAccounting', language)),
       icon: <DollarSign className="w-4 h-4" />,
       badge: currentRole === 'marketing' ? 'Invoice/Pay' : undefined,
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
@@ -217,30 +278,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'inventory',
-      label: getTranslation('navInventory', language),
+      label: resolveLabel(
+        'inventory',
+        language === 'bn' ? 'ইনভেন্টরি ও কোম্পানি অ্যাসেট' : 'Inventory & Assets'
+      ),
       icon: <Package className="w-4 h-4" />,
+      badge: 'Metrics/PC',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30',
       category: 'finance',
     },
     {
-      id: 'hr_payroll',
-      label: getTranslation('navHrPayroll', language),
+      id: 'documents_center',
+      label: resolveLabel(
+        'documents_center',
+        language === 'bn' ? 'কোম্পানি ডকুমেন্টস ও চালান' : 'Company Documents'
+      ),
+      icon: <FileText className="w-4 h-4" />,
+      category: 'finance',
+    },
+    {
+      id: 'users_employees',
+      label: resolveLabel(
+        'users_employees',
+        language === 'bn' ? 'ইউজার ও কর্মী তালিকা' : 'User & Employee List'
+      ),
       icon: <Users className="w-4 h-4" />,
-      badge: (currentRole === 'print_factory' || currentRole === 'sewing_factory') ? 'Attendance' : undefined,
+      category: 'workforce',
+    },
+    {
+      id: 'hr_payroll',
+      label: resolveLabel('hr_payroll', getTranslation('navHrPayroll', language)),
+      icon: <UserCheck className="w-4 h-4" />,
+      badge:
+        currentRole === 'print_factory' || currentRole === 'sewing_factory'
+          ? 'Attendance'
+          : undefined,
       badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',
       category: 'workforce',
     },
     {
       id: 'managers_portal',
-      label: getTranslation('navManagersPortal', language),
+      label: resolveLabel('managers_portal', getTranslation('navManagersPortal', language)),
       icon: <ShieldCheck className="w-4 h-4" />,
       category: 'workforce',
     },
     {
       id: 'employee_portal',
-      label: getTranslation('navEmployeePortal', language),
+      label: resolveLabel('employee_portal', getTranslation('navEmployeePortal', language)),
       icon: <UserCheck className="w-4 h-4" />,
       badge: 'Live',
       badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
+      category: 'workforce',
+    },
+    {
+      id: 'guidelines_sop',
+      label: resolveLabel(
+        'guidelines_sop',
+        language === 'bn' ? 'গাইডলাইন ও ডেটা সিঙ্ক' : 'Guidelines & Data Sync'
+      ),
+      icon: <BookOpen className="w-4 h-4" />,
+      badge: 'SOP',
+      badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',
       category: 'workforce',
     },
   ];

@@ -67,10 +67,13 @@ export interface Order {
   hasShortage?: 'yes' | 'no';
   assignedToEmployeeId?: string;
   assignedToEmployeeName?: string;
+  externalDesignProjectId?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
 }
+
+export type CustomerPrivilegeTier = 'standard' | 'silver' | 'gold' | 'platinum_vip';
 
 export interface Customer {
   id: string;
@@ -83,6 +86,14 @@ export interface Customer {
   creditLimit: number;
   outstandingBalance: number;
   status: 'lead' | 'active' | 'vip';
+  returningRatio?: number; // e.g. 92 (%)
+  starRating?: number; // 1 to 5 stars
+  privilegeTier?: CustomerPrivilegeTier;
+  discountPrivilegePercent?: number; // e.g. 10%
+  portalAccessCode?: string; // e.g. "PORTAL-RSA-8891"
+  totalOrdersCount?: number;
+  lifetimeSpend?: number;
+  assignedMarketingRep?: string;
   notes?: string;
   createdAt: string;
 }
@@ -132,11 +143,16 @@ export interface Invoice {
   paymentTerms: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
+  customerPortalCode?: string;
+  customerStarRating?: number;
+  customerReturningRatio?: number;
+  customerPrivilegeTier?: CustomerPrivilegeTier;
   createdAt: string;
 }
 
 export interface Vendor {
   id: string;
+  supplierCode?: string;
   name: string;
   category: 'fabric_mill' | 'ink_supplier' | 'paper_supplier' | 'accessories' | 'equipment' | 'logistics';
   contactPerson: string;
@@ -147,6 +163,14 @@ export interface Vendor {
   totalPaid: number;
   balanceDue: number;
   paymentTerms: string;
+  rating?: number;
+  onTimeDeliveryRate?: number;
+  qualityScore?: number;
+  leadTimeDays?: number;
+  moq?: string;
+  certifications?: string[];
+  suppliedItems?: string[];
+  status?: 'preferred' | 'active' | 'on_hold';
 }
 
 export interface LedgerEntry {
@@ -214,6 +238,7 @@ export interface Employee {
   role: UserRole;
   department: string;
   designation: string;
+  post?: string;
   location: FactoryLocation;
   baseSalary: number; // Monthly
   hourlyOvertimeRate: number;
@@ -224,6 +249,13 @@ export interface Employee {
   permissions?: EmployeePermissions;
   activeStatus?: 'online' | 'idle' | 'offline';
   lastSeen?: string;
+  nid?: string;
+  pictureUrl?: string;
+  contractStatus?: 'permanent' | 'contractual' | 'probation' | 'internship';
+  contractDocumentUrl?: string;
+  contractCreatedDate?: string;
+  contractExpiryDate?: string;
+  emergencyContact?: string;
 }
 
 export interface AttendanceRecord {
@@ -272,16 +304,105 @@ export interface ShortageTicket {
   createdBy: string;
 }
 
+export type InventoryCategory =
+  | 'fabric'
+  | 'ink'
+  | 'paper'
+  | 'packaging'
+  | 'thread'
+  | 'accessories'
+  | 'trims'
+  | 'chemicals';
+
 export interface InventoryItem {
   id: string;
+  sku?: string;
   name: string;
-  category: 'fabric' | 'ink' | 'paper' | 'packaging' | 'thread';
+  category: InventoryCategory;
   location: 'print_factory' | 'sewing_factory' | 'head_office';
   currentStock: number;
-  unit: string;
+  unit: string; // Preferable metric: meters, yards, kg, grams, liters, ml, rolls, cones, pieces, boxes, sets
+  preferredMetric?: string;
+  gsm?: number;
+  rollWidth?: string;
+  supplierName?: string;
   minimumThreshold: number;
   unitCost?: number;
   updatedAt: string;
+}
+
+export type AssetCategory =
+  | 'pc_workstation'
+  | 'sewing_machine'
+  | 'sublimation_printer'
+  | 'heat_press'
+  | 'laser_cutter'
+  | 'scanner_mobile'
+  | 'power_generator'
+  | 'vehicle';
+
+export interface CompanyAsset {
+  id: string;
+  assetCode: string; // e.g. "AST-SEW-012"
+  name: string;
+  category: AssetCategory;
+  brandModel: string;
+  serialNumber: string;
+  location: 'head_office' | 'print_factory' | 'sewing_factory';
+  assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
+  status: 'operational' | 'in_maintenance' | 'repair_required' | 'standby';
+  purchaseDate: string;
+  purchaseValue: number;
+  lastServicedDate?: string;
+  notes?: string;
+}
+
+export type DocumentTemplateType =
+  | 'delivery_challan'
+  | 'purchase_order'
+  | 'proforma_invoice'
+  | 'qc_certificate'
+  | 'factory_memo'
+  | 'asset_handover'
+  | 'custom_letter';
+
+export interface CompanyDocument {
+  id: string;
+  docNumber: string;
+  title: string;
+  type: DocumentTemplateType;
+  department: string;
+  recipientName: string;
+  recipientOrg?: string;
+  linkedOrderNumber?: string;
+  linkedInvoiceNumber?: string;
+  contentBody: string;
+  lineItems?: { description: string; qty: string; remarks: string }[];
+  status: 'draft' | 'issued' | 'archived';
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface MarketingFaqItem {
+  id: string;
+  category: 'pricing_moq' | 'fabric_gsm' | 'delivery_sla' | 'payment_terms' | 'design_sizing' | 'shortage_warranty';
+  question: string;
+  answerEn: string;
+  answerBn: string;
+  proTip?: string;
+}
+
+export interface ShippingIntegration {
+  id: string;
+  providerName: string; // Pathao, Steadfast, RedX, Paperfly, DHL
+  enabled: boolean;
+  merchantId: string;
+  apiEndpoint: string;
+  insideCityRate: number;
+  outsideCityRate: number;
+  autoBookOnDispatch: boolean;
+  status: 'connected' | 'sandbox' | 'disconnected';
 }
 
 export interface Expense {
@@ -367,7 +488,7 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     location: 'head_office',
     locationLabel: 'Head Office (Banani)',
     badgeColor: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-950/60 dark:text-pink-300 dark:border-pink-800',
-    description: '2D & 3D sportswear mockups, client revisions, visual sign-offs, AI mockup generation.',
+    description: '2D & 3D sportswear mockups, client revisions, visual sign-offs, external design API sync.',
   },
   design_pattern: {
     id: 'design_pattern',
@@ -445,6 +566,8 @@ export interface TeamMessage {
   senderAvatar?: string;
   content: string;
   status?: 'sent' | 'delivered' | 'read';
+  isPinned?: boolean;
+  reactions?: Record<string, number>;
   taggedEmployees?: string[];
   taggedDepartments?: string[];
   taggedOrders?: string[];
@@ -469,6 +592,12 @@ export interface CompanySettings {
   jobCardPrefix: string;
   dailyPrintTargetMeters: number;
   dailySewingTargetPcs: number;
+  customModuleNames?: Record<string, string>;
+  shippingProviders?: ShippingIntegration[];
+  externalDesignToolName?: string;
+  externalDesignApiUrl?: string;
+  externalDesignWebhookEnabled?: boolean;
+  enabledFeatures?: Record<string, boolean>;
 }
 
 export interface DailyFactoryOutput {
@@ -481,3 +610,119 @@ export interface DailyFactoryOutput {
   reprintsRuined: number;
   efficiencyPercent: number;
 }
+
+export interface PurchaseOrderItem {
+  inventoryItemId?: string;
+  itemName: string;
+  category: 'fabric' | 'ink' | 'paper' | 'thread' | 'packaging' | 'accessories';
+  quantity: number;
+  unit: string;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  vendorId: string;
+  vendorName: string;
+  vendorCategory: Vendor['category'];
+  deliveryLocation: FactoryLocation;
+  items: PurchaseOrderItem[];
+  totalAmount: number;
+  status: 'draft' | 'issued' | 'in_transit' | 'received_grn' | 'cancelled';
+  expectedDeliveryDate: string;
+  grnNumber?: string;
+  receivedAt?: string;
+  qualityCheckPassed?: boolean;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type SampleStage =
+  | 'concept_techpack'
+  | 'cad_3d_pattern'
+  | 'proto_sample'
+  | 'fit_wear_test'
+  | 'pp_sample'
+  | 'approved_for_bulk';
+
+export interface BomCostItem {
+  id: string;
+  componentName: string;
+  category: 'Fabric' | 'Sublimation Paper & Ink' | 'Trims & Labels' | 'Sewing SMV Labor' | 'Packaging & QC';
+  consumptionPerPc: number;
+  unit: string;
+  ratePerUnit: number;
+  costPerPc: number;
+}
+
+export interface ProductSample {
+  id: string;
+  techPackCode: string;
+  styleName: string;
+  category:
+    | 'Football Kit'
+    | 'Cricket Jersey'
+    | 'Basketball Uniform'
+    | 'Marathon Singlet'
+    | 'Esports Pro Jersey'
+    | 'Tracksuit / Warmup'
+    | 'Training Shorts';
+  seasonOrCollection: string;
+  clientOrBrand: string;
+  fabricSpec: string;
+  gsm: number;
+  collarType: string;
+  fitType: 'Athletic Pro Fit' | 'Regular Club Fit' | 'Compression Fit' | 'Relaxed Training';
+  stage: SampleStage;
+  sampleVersion: string;
+  heatPressTempC: number;
+  heatPressTimeSec: number;
+  shrinkageWarpPct: number;
+  shrinkageWeftPct: number;
+  washFastnessGrade: string;
+  fabricYieldMetersPerPc: number;
+  bomItems: BomCostItem[];
+  unitProductionCost: number;
+  targetWholesalePrice: number;
+  targetRetailPrice: number;
+  estimatedMarginPct: number;
+  measurements: {
+    chestCm: number;
+    lengthCm: number;
+    sleeveCm: number;
+    toleranceCm: number;
+  };
+  designerName: string;
+  patternMasterName: string;
+  statusNotes: string;
+  mockupUrl?: string;
+  convertedOrderId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ColorSwatchRecipe {
+  id: string;
+  swatchCode: string;
+  colorName: string;
+  pantoneCode: string;
+  hexPreview: string;
+  cmykRecipe: {
+    c: number;
+    m: number;
+    y: number;
+    k: number;
+  };
+  targetFabric: string;
+  gsm: number;
+  pressTempC: number;
+  pressSeconds: number;
+  deltaEScore: number;
+  status: 'approved' | 'testing' | 're_calibration';
+  labNotes: string;
+  updatedAt: string;
+}
+
