@@ -40,6 +40,7 @@ import {
   Key,
   QrCode,
   ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 
 interface AccountingModuleProps {
@@ -61,6 +62,12 @@ interface AccountingModuleProps {
   onUpdateInvoice: (id: string, partial: Partial<Invoice>) => Promise<void>;
   onCreateBankAccount?: (acc: BankAccount) => Promise<void>;
   onOpenClientPortal?: () => void;
+  onOpenPrivateInvoiceChat?: (invoiceNumber: string, targetEmployeeId?: string) => void;
+  onNotifyAction?: (
+    tag: 'DONE' | 'APPROVED' | 'DELEGATED' | 'VERIFIED',
+    title: string,
+    message: string
+  ) => void;
 }
 
 export const AccountingModule: React.FC<AccountingModuleProps> = ({
@@ -82,6 +89,8 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
   onUpdateInvoice,
   onCreateBankAccount,
   onOpenClientPortal,
+  onOpenPrivateInvoiceChat,
+  onNotifyAction,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'invoices' | 'estimates' | 'ledger' | 'payments' | 'expenses' | 'banks' | 'pnl'
@@ -277,7 +286,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xs">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Invoiced</span>
           <div className="text-xl font-black text-gray-900 dark:text-white mt-1">
-            ${totalInvoiced.toLocaleString()}
+            ৳{totalInvoiced.toLocaleString()}
           </div>
           <span className="text-[10px] text-emerald-600 font-medium">From {invoices.length} active invoices</span>
         </div>
@@ -285,7 +294,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xs">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Cash Collected</span>
           <div className="text-xl font-black text-emerald-600 mt-1">
-            ${totalPaidInvoices.toLocaleString()}
+            ৳{totalPaidInvoices.toLocaleString()}
           </div>
           <span className="text-[10px] text-gray-500">
             {Math.round((totalPaidInvoices / (totalInvoiced || 1)) * 100)}% realization rate
@@ -295,7 +304,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xs">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Accounts Receivable (Due)</span>
           <div className="text-xl font-black text-amber-600 mt-1">
-            ${totalDueInvoices.toLocaleString()}
+            ৳{totalDueInvoices.toLocaleString()}
           </div>
           <span className="text-[10px] text-amber-600 font-medium">To collect prior to dispatch</span>
         </div>
@@ -303,7 +312,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xs">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Vendor Payables</span>
           <div className="text-xl font-black text-red-500 mt-1">
-            ${totalVendorPayables.toLocaleString()}
+            ৳{totalVendorPayables.toLocaleString()}
           </div>
           <span className="text-[10px] text-gray-500">Fabrics, Inks, Paper mills</span>
         </div>
@@ -311,7 +320,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
         <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xs">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Operating Expenses</span>
           <div className="text-xl font-black text-purple-600 mt-1">
-            ${totalExpenseAmount.toLocaleString()}
+            ৳{totalExpenseAmount.toLocaleString()}
           </div>
           <span className="text-[10px] text-purple-600 font-medium">Power, van, maintenance</span>
         </div>
@@ -467,9 +476,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                             {inv.type.toUpperCase()}
                           </span>
                         </td>
-                        <td className="p-3 font-bold text-gray-900 dark:text-white">${inv.totalAmount}</td>
-                        <td className="p-3 font-bold text-emerald-600">${inv.paidAmount}</td>
-                        <td className="p-3 font-bold text-amber-600">${inv.dueAmount}</td>
+                        <td className="p-3 font-bold text-gray-900 dark:text-white">৳{inv.totalAmount}</td>
+                        <td className="p-3 font-bold text-emerald-600">৳{inv.paidAmount}</td>
+                        <td className="p-3 font-bold text-amber-600">৳{inv.dueAmount}</td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             inv.status === 'paid'
@@ -483,12 +492,52 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         </td>
                         <td className="p-3 text-gray-500 font-mono text-[11px]">{inv.dueDate}</td>
                         <td className="p-3 text-right">
-                          <button
-                            onClick={() => setViewInvoice(inv)}
-                            className="px-2.5 py-1 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-750 font-bold text-[11px] text-gray-700 dark:text-gray-300"
-                          >
-                            View & Print
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {inv.status !== 'paid' && (
+                              <button
+                                onClick={async () => {
+                                  await onUpdateInvoice(inv.id, {
+                                    status: 'paid',
+                                    paidAmount: inv.totalAmount,
+                                    dueAmount: 0,
+                                  });
+                                  onNotifyAction?.(
+                                    'APPROVED',
+                                    `Invoice Cleared & Approved: ${inv.invoiceNumber}`,
+                                    `Full settlement of ৳${inv.totalAmount.toLocaleString()} BDT approved for ${inv.customerName}.`
+                                  );
+                                }}
+                                data-testid={`approve-invoice-btn-${inv.invoiceNumber}`}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                title="Approve & Mark Invoice Paid"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Approve</span>
+                              </button>
+                            )}
+                            {onOpenPrivateInvoiceChat && (
+                              <button
+                                onClick={() =>
+                                  onOpenPrivateInvoiceChat(
+                                    inv.invoiceNumber,
+                                    inv.assignedEmployeeId
+                                  )
+                                }
+                                data-testid={`private-chat-invoice-btn-${inv.invoiceNumber}`}
+                                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition"
+                                title="Send Private Personal Message Related to this Invoice"
+                              >
+                                <MessageSquare className="w-3 h-3" />
+                                <span>Private DM</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setViewInvoice(inv)}
+                              className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-750 font-bold text-[11px] text-gray-700 dark:text-gray-300 cursor-pointer"
+                            >
+                              View & Print
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -547,7 +596,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                       <span className="text-gray-700 dark:text-gray-300">
                         {it.description} &times; <strong>{it.quantity}</strong>
                       </span>
-                      <span className="font-mono font-bold">${it.total}</span>
+                      <span className="font-mono font-bold">৳{it.total}</span>
                     </div>
                   ))}
                 </div>
@@ -555,7 +604,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[10px] text-gray-400 block">Total Quotation</span>
-                    <span className="font-black text-gray-900 dark:text-white text-sm">${est.totalAmount}</span>
+                    <span className="font-black text-gray-900 dark:text-white text-sm">৳{est.totalAmount}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -667,9 +716,9 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         </td>
                         <td className="p-3 text-indigo-600">{led.referenceId}</td>
                         <td className="p-3 font-sans text-gray-600 dark:text-gray-300">{led.description}</td>
-                        <td className="p-3 font-bold text-red-600">{led.debit > 0 ? `$${led.debit}` : '-'}</td>
-                        <td className="p-3 font-bold text-emerald-600">{led.credit > 0 ? `$${led.credit}` : '-'}</td>
-                        <td className="p-3 text-right font-black text-gray-900 dark:text-white">${led.runningBalance}</td>
+                        <td className="p-3 font-bold text-red-600">{led.debit > 0 ? `৳${led.debit}` : '-'}</td>
+                        <td className="p-3 font-bold text-emerald-600">{led.credit > 0 ? `৳${led.credit}` : '-'}</td>
+                        <td className="p-3 text-right font-black text-gray-900 dark:text-white">৳{led.runningBalance}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -721,7 +770,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         </span>
                       </td>
                       <td className="p-3 font-bold text-gray-900 dark:text-white">{p.partyName}</td>
-                      <td className="p-3 font-black text-sm text-gray-900 dark:text-white">${p.amount}</td>
+                      <td className="p-3 font-black text-sm text-gray-900 dark:text-white">৳{p.amount}</td>
                       <td className="p-3 font-bold uppercase text-[10px] text-gray-500">{p.method.replace('_', ' ')}</td>
                       <td className="p-3 font-mono text-indigo-600">{p.transactionRef}</td>
                       <td className="p-3 text-gray-500 text-[11px]">{p.verifiedBy}</td>
@@ -779,7 +828,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-base font-black text-purple-600 block">${exp.amount}</span>
+                    <span className="text-base font-black text-purple-600 block">৳{exp.amount}</span>
                     {exp.proofImageUrl && (
                       <a
                         href={exp.proofImageUrl}
@@ -852,7 +901,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                     Current Balance
                   </span>
                   <span className="text-lg font-black text-emerald-400 font-mono">
-                    ${bnk.balance.toLocaleString()}
+                    ৳{bnk.balance.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -879,47 +928,47 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
           <div className="space-y-3 font-sans">
             <div className="flex justify-between py-2 border-b font-bold text-sm">
               <span className="text-gray-900 dark:text-white">Gross Revenue (Invoiced Sales)</span>
-              <span className="text-emerald-600 font-black font-mono">${totalInvoiced.toLocaleString()}</span>
+              <span className="text-emerald-600 font-black font-mono">৳{totalInvoiced.toLocaleString()}</span>
             </div>
 
             <div className="pl-4 space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
               <div className="flex justify-between">
                 <span>&bull; Direct Sublimation Fabrics (Micro-Eyelet, Poly Interlock)</span>
-                <span className="font-mono">-${(totalInvoiced * 0.28).toFixed(0)}</span>
+                <span className="font-mono">-৳{(totalInvoiced * 0.28).toFixed(0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>&bull; Sublimation Inks & 90 GSM Transfer Paper</span>
-                <span className="font-mono">-${(totalInvoiced * 0.09).toFixed(0)}</span>
+                <span className="font-mono">-৳{(totalInvoiced * 0.09).toFixed(0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>&bull; Sewing Accessories (Threads, Neck Ribbing, Labels)</span>
-                <span className="font-mono">-${(totalInvoiced * 0.05).toFixed(0)}</span>
+                <span className="font-mono">-৳{(totalInvoiced * 0.05).toFixed(0)}</span>
               </div>
             </div>
 
             <div className="flex justify-between py-2 border-b font-bold text-xs bg-gray-50 dark:bg-gray-800 px-3 rounded-lg">
               <span>Gross Production Margin</span>
-              <span className="font-mono">${(totalInvoiced * 0.58).toFixed(0)}</span>
+              <span className="font-mono">৳{(totalInvoiced * 0.58).toFixed(0)}</span>
             </div>
 
             <div className="pl-4 space-y-1.5 text-xs text-gray-600 dark:text-gray-400 pt-2">
               <div className="flex justify-between">
                 <span>&bull; Factory Electric Power (Calender 202°C Run)</span>
-                <span className="font-mono">-${expenses.filter(e => e.category === 'Utilities').reduce((s,e) => s + e.amount, 0)}</span>
+                <span className="font-mono">-৳{expenses.filter(e => e.category === 'Utilities').reduce((s,e) => s + e.amount, 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>&bull; Shuttle Logistics & Fuel (Tongi - Mirpur - Banani)</span>
-                <span className="font-mono">-${expenses.filter(e => e.category === 'Logistics').reduce((s,e) => s + e.amount, 0)}</span>
+                <span className="font-mono">-৳{expenses.filter(e => e.category === 'Logistics').reduce((s,e) => s + e.amount, 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span>&bull; Machine Repairs & Line Maintenance</span>
-                <span className="font-mono">-${expenses.filter(e => e.category === 'Maintenance').reduce((s,e) => s + e.amount, 0)}</span>
+                <span className="font-mono">-৳{expenses.filter(e => e.category === 'Maintenance').reduce((s,e) => s + e.amount, 0)}</span>
               </div>
             </div>
 
             <div className="flex justify-between py-3 border-t-2 border-gray-900 dark:border-white font-black text-base pt-4">
               <span className="text-gray-900 dark:text-white">Estimated Operating Net Profit</span>
-              <span className="text-emerald-600 font-mono">${netProfit.toLocaleString()}</span>
+              <span className="text-emerald-600 font-mono">৳{netProfit.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -981,7 +1030,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   <option value="">-- Choose an open invoice or enter manually --</option>
                   {invoices.map((inv) => (
                     <option key={inv.id} value={inv.id}>
-                      {inv.invoiceNumber} • {inv.customerName} (Due: ${inv.dueAmount})
+                      {inv.invoiceNumber} • {inv.customerName} (Due: ৳{inv.dueAmount})
                     </option>
                   ))}
                 </select>
@@ -1001,7 +1050,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Amount ($)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Amount (BDT ৳)</label>
                   <input
                     type="number"
                     required
@@ -1038,7 +1087,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                   <option value="">-- Select Bank Account / Wallet --</option>
                   {bankAccounts.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.bankName} ({b.accountNumber}) - Bal: ${b.balance}
+                      {b.bankName} ({b.accountNumber}) - Bal: ৳{b.balance}
                     </option>
                   ))}
                 </select>
@@ -1155,7 +1204,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase">
-                    Amount ($)
+                    Amount (BDT ৳)
                   </label>
                   <input
                     type="number"
@@ -1260,7 +1309,7 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase">
-                    Opening Balance ($)
+                    Opening Balance (BDT ৳)
                   </label>
                   <input
                     type="number"
@@ -1529,10 +1578,10 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                         {matchedOrder?.totalQuantity || 30} Sets
                       </td>
                       <td className="p-3.5 text-right font-mono text-slate-700">
-                        ${matchedOrder?.unitPrice || (viewInvoice.totalAmount / 30).toFixed(2)}
+                        ৳{matchedOrder?.unitPrice || (viewInvoice.totalAmount / 30).toFixed(2)}
                       </td>
                       <td className="p-3.5 text-right font-mono font-black text-slate-900">
-                        ${viewInvoice.totalAmount.toLocaleString()}
+                        ৳{viewInvoice.totalAmount.toLocaleString()}
                       </td>
                     </tr>
                   </tbody>
@@ -1569,15 +1618,15 @@ export const AccountingModule: React.FC<AccountingModuleProps> = ({
                 <div className="sm:col-span-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
                   <div className="flex justify-between py-1 border-b border-slate-200">
                     <span className="text-slate-500 font-sans">Gross Invoice Total:</span>
-                    <span className="font-bold text-slate-900">${viewInvoice.totalAmount.toLocaleString()}</span>
+                    <span className="font-bold text-slate-900">৳{viewInvoice.totalAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-200 text-emerald-700 font-bold">
                     <span className="font-sans">Advance / Paid Amount:</span>
-                    <span>-${viewInvoice.paidAmount.toLocaleString()}</span>
+                    <span>-৳{viewInvoice.paidAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between py-1.5 text-sm font-black border-t-2 border-slate-900 text-amber-700">
                     <span className="font-sans">Net Balance Due:</span>
-                    <span>${viewInvoice.dueAmount.toLocaleString()}</span>
+                    <span>৳{viewInvoice.dueAmount.toLocaleString()}</span>
                   </div>
                   <p className="text-[10px] font-sans text-slate-500 pt-1">
                     Terms: {viewInvoice.paymentTerms}

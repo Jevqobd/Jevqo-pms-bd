@@ -52,7 +52,7 @@ const DEFAULT_MODULE_LABELS: Record<string, string> = {
   print_floor: 'Tongi Print Factory',
   sewing_floor: 'Mirpur Sewing Factory',
   shortages: 'Shortage / Re-Print',
-  '3d_studio': '3D Jersey Studio',
+  bulk_import: 'Bulk Data Import Hub',
   accounting: 'Accounting & Ledgers',
   inventory: 'Inventory & Assets',
   hr_payroll: 'HR, Attendance & Salary',
@@ -102,8 +102,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   language = 'en',
   onSaveSettings,
 }) => {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<
     'corporate' | 'modules_features' | 'shipping' | 'external_api'
   >('corporate');
@@ -125,6 +123,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // New custom feature state
   const [newFunctionKey, setNewFunctionKey] = useState('');
+
+  if (!isOpen) return null;
 
   const canEdit = currentRole === 'owner' || currentRole === 'accountant';
 
@@ -229,9 +229,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base text-white">
-                  {language === 'bn'
-                    ? 'সম্পূর্ণ সিস্টেম সেটিংস ও কনফিগারেশন'
-                    : 'Full System Settings, Module Customizer & Courier API'}
+                  {'Full System Settings, Module Customizer & Courier API'}
                 </h3>
                 {lastSavedAt && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-mono">
@@ -240,9 +238,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400">
-                {language === 'bn'
-                  ? 'যেকোনো মডিউলের নাম পরিবর্তন, নতুন ফাংশন যোগ, কুরিয়ার ইন্টিগ্রেশন এবং ফ্যাক্টরি তথ্য আপডেট করুন।'
-                  : 'Edit any module name, toggle/add system functions, configure shipping couriers, and manage 3 facilities.'}
+                {'Edit any module name, toggle/add system functions, configure shipping couriers, and manage 3 facilities.'}
               </p>
             </div>
           </div>

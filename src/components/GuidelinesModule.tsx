@@ -7,6 +7,7 @@ import {
 import { Order, InventoryItem, Customer, CompanySettings } from '../types/erp';
 import { Language } from '../utils/translations';
 import { useFormDraft } from '../utils/useFormDraft';
+import { SoftwareAuthorizedInfoCard } from './SoftwareAuthorizedInfoCard';
 
 interface GuidelinesModuleProps {
   orders: Order[];
@@ -33,45 +34,45 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'step_1',
     role: 'Marketing & Sales',
     titleEn: '1. Create Order & Assign Dedicated Handler',
-    titleBn: '১. অর্ডার তৈরি এবং ডেডিকেটেড প্রতিনিধি নির্ধারণ',
+    titleBn: 'English Standard Documentation',
     descEn: 'Select customer from CRM (auto-applies Privilege Tier discount), enter size breakdown, collar type, shorts option, and reference artwork. Form stays in Draft automatically until saved.',
-    descBn: 'CRM থেকে গ্রাহক নির্বাচন করুন (ভিআইপি ডিসকাউন্ট অটো যুক্ত হবে), সাইজ ব্রেকডাউন, কলারের ধরন ও শর্টস যোগ করুন। সেভ না করা পর্যন্ত ফর্ম অটো-ড্রাফট থাকবে।',
+    descBn: 'English Standard Documentation',
     targetTab: 'head_office',
   },
   {
     id: 'step_2',
     role: 'Design Team 1 & 2',
     titleEn: '2. External Design Sync & Print-Ready Separations',
-    titleBn: '২. এক্সটার্নাল ডিজাইন সিঙ্ক ও প্রিন্ট-রেডি ফাইল প্রস্তুতি',
+    titleBn: 'English Standard Documentation',
     descEn: 'Sync 3D artwork via the External Design Tool API, get customer approval, then generate Front, Back, Sleeve & Collar RIP separation files in Design Team 2.',
-    descBn: 'এক্সটার্নাল ডিজাইন টুল API-এর মাধ্যমে থ্রিডি আর্টওয়ার্ক সিঙ্ক করুন, গ্রাহকের অনুমোদন নিন এবং প্রিন্টের জন্য প্যানেল ফাইল প্রস্তুত করুন।',
+    descBn: 'English Standard Documentation',
     targetTab: 'head_office',
   },
   {
     id: 'step_3',
     role: 'Print Factory (Konabari)',
     titleEn: '3. Sublimation Roll Printing & Heat Transfer QC',
-    titleBn: '৩. সাবলিমেশন রোল প্রিন্টিং এবং হিট ট্রান্সফার কিউসি',
+    titleBn: 'English Standard Documentation',
     descEn: 'Scan bundle QR code at Factory 1, verify ink & transfer paper metrics in Inventory, complete rotary calendar transfer, and dispatch bundle to Sewing.',
-    descBn: 'ফ্যাক্টরি ১-এ বান্ডেল QR কোড স্ক্যান করুন, ইনভেন্টরিতে কালি ও পেপার যাচাই করুন এবং হিট ট্রান্সফার শেষে সুইং কারখানায় পাঠান।',
+    descBn: 'English Standard Documentation',
     targetTab: 'print_floor',
   },
   {
     id: 'step_4',
     role: 'Sewing Factory (Ashulia)',
     titleEn: '4. Line Stitching, Shortage Ticket & Packing',
-    titleBn: '৪. লাইন সুইং, শর্টেজ/রি-প্রিন্ট টিকিট এবং প্যাকিং',
+    titleBn: 'English Standard Documentation',
     descEn: 'Receive printed panels at Factory 2. If any panel is ruined during heat press or stitching, click "Report Shortage" to alert Design Team 2 & Print immediately.',
-    descBn: 'ফ্যাক্টরি ২-এ প্রিন্টেড প্যানেল গ্রহণ করুন। কোনো প্যানেল নষ্ট হলে "Report Shortage" বাটনে ক্লিক করে দ্রুত রি-প্রিন্টের রিকোয়েস্ট পাঠান।',
+    descBn: 'English Standard Documentation',
     targetTab: 'sewing_floor',
   },
   {
     id: 'step_5',
     role: 'Accounts & Dispatch',
     titleEn: '5. Executive Invoice, Portal Pass & Courier Booking',
-    titleBn: '৫. ইনভয়েস তৈরি, কাস্টমার পোর্টাল পাস এবং কুরিয়ার বুকিং',
+    titleBn: 'English Standard Documentation',
     descEn: 'Generate executive PDF Invoice with Customer Portal Access Key, Returning Ratio & Privilege Stars. Book Steadfast/Pathao/RedX courier directly and issue Delivery Challan.',
-    descBn: 'কাস্টমার পোর্টাল অ্যাক্সেস কী ও লয়্যালটি স্টারসহ ইনভয়েস প্রিন্ট করুন এবং কুরিয়ার বুকিং ও ডেলিভারি চালান ইস্যু করুন।',
+    descBn: 'English Standard Documentation',
     targetTab: 'accounting',
   },
 ];
@@ -134,14 +135,10 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight">
-                  {lang === 'bn'
-                    ? 'সিস্টেম গাইডলাইন, নতুন ইউজার অনবোর্ডিং এবং স্মার্ট ডেটা সিঙ্ক'
-                    : 'System Guidelines, User Onboarding & Cross-Module Data Hub'}
+                  {'System Guidelines, User Onboarding & Cross-Module Data Hub'}
                 </h2>
                 <p className="text-xs text-slate-400">
-                  {lang === 'bn'
-                    ? 'নতুন কর্মীদের দ্রুত প্রশিক্ষণ এবং এক মডিউলের সাথে অন্য মডিউলের স্বয়ংক্রিয় ডেটা আদান-প্রদান'
-                    : 'Step-by-step bilingual SOPs to adapt new staff quickly + live cross-component data sharing & automation'}
+                  {'Step-by-step bilingual SOPs to adapt new staff quickly + live cross-component data sharing & automation'}
                 </p>
               </div>
             </div>
@@ -157,7 +154,7 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              {lang === 'bn' ? 'অনবোর্ডিং গাইড (SOP)' : 'New User Onboarding SOP'}
+              {'New User Onboarding SOP'}
             </button>
             <button
               onClick={() => setActiveTab('smart_sync')}
@@ -168,7 +165,7 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
               }`}
             >
               <Zap className="w-4 h-4" />
-              {lang === 'bn' ? 'মডিউল ডেটা কানেকশন ও আপগ্রেড' : 'Cross-Component Sync & Upgrades'}
+              {'Cross-Component Sync & Upgrades'}
             </button>
             <button
               onClick={() => setActiveTab('architecture')}
@@ -179,7 +176,7 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
               }`}
             >
               <Layers className="w-4 h-4" />
-              {lang === 'bn' ? '৩-ফ্যাক্টরি ওয়ার্কফ্লো ম্যাপ' : '3-Facility Workflow Map'}
+              {'3-Facility Workflow Map'}
             </button>
           </div>
         </div>
@@ -191,7 +188,7 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="text-xs font-bold text-teal-400 uppercase tracking-wider">
-                {lang === 'bn' ? 'নতুন কর্মী প্রশিক্ষণ অগ্রগতি' : 'New Staff Adaptation Progress'}
+                {'New Staff Adaptation Progress'}
               </div>
               <div className="text-lg font-black text-white mt-0.5">
                 {completedSteps.length} / {ONBOARDING_STEPS.length} Modules Mastered ({Math.round((completedSteps.length / ONBOARDING_STEPS.length) * 100)}%)
@@ -502,6 +499,9 @@ export const GuidelinesModule: React.FC<GuidelinesModuleProps> = ({
           </div>
         </div>
       )}
+
+      {/* Official Software Authorized Info */}
+      <SoftwareAuthorizedInfoCard variant="card" />
     </div>
   );
 };

@@ -962,6 +962,57 @@ export class ErpStorageService {
     }
   }
 
+  // ===================== BULK DATA MIGRATION & IMPORT =====================
+  static async bulkImportOrders(ordersToImport: Order[]): Promise<void> {
+    const current = this.getLocalOrders();
+    const merged = [...ordersToImport, ...current];
+    setLocal(KEYS.ORDERS, merged);
+    if (auth.currentUser) {
+      for (const ord of ordersToImport) {
+        try {
+          await setDoc(doc(db, 'orders', ord.id), ord);
+        } catch (e) {
+          console.warn('Firestore bulk order import fallback', e);
+        }
+      }
+    }
+  }
+
+  static async bulkImportEmployees(emps: Employee[]): Promise<void> {
+    const current = this.getLocalEmployees();
+    setLocal(KEYS.EMPLOYEES, [...emps, ...current]);
+  }
+
+  static async bulkImportPayments(paymentsToImport: PaymentRecord[]): Promise<void> {
+    const current = this.getLocalPayments();
+    setLocal(KEYS.PAYMENTS, [...paymentsToImport, ...current]);
+  }
+
+  static async bulkImportExpenses(expensesToImport: Expense[]): Promise<void> {
+    const current = this.getLocalExpenses();
+    setLocal(KEYS.EXPENSES, [...expensesToImport, ...current]);
+  }
+
+  static async bulkImportCustomers(customersToImport: Customer[]): Promise<void> {
+    const current = this.getLocalCustomers();
+    setLocal(KEYS.CUSTOMERS, [...customersToImport, ...current]);
+  }
+
+  static async bulkImportInventory(itemsToImport: InventoryItem[]): Promise<void> {
+    const current = this.getLocalInventory();
+    setLocal(KEYS.INVENTORY, [...itemsToImport, ...current]);
+  }
+
+  static async bulkImportVendors(vendorsToImport: Vendor[]): Promise<void> {
+    const current = this.getLocalVendors();
+    setLocal(KEYS.VENDORS, [...vendorsToImport, ...current]);
+  }
+
+  static async bulkImportAssets(assetsToImport: CompanyAsset[]): Promise<void> {
+    const current = this.getLocalAssets();
+    setLocal(KEYS.ASSETS, [...assetsToImport, ...current]);
+  }
+
   // Seed to firestore helper
   static async seedAllToFirestore(): Promise<void> {
     if (!auth.currentUser) return;

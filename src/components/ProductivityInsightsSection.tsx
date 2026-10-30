@@ -85,15 +85,13 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
             </div>
             <div>
               <h3 className="font-black text-base text-white flex items-center gap-2">
-                <span>{language === 'bn' ? 'ফ্যাক্টরি উৎপাদন বিশ্লেষণ ও প্রোডাক্টিভিটি' : 'Productivity Insights: Print & Sewing Factories'}</span>
+                <span>{'Productivity Insights: Print & Sewing Factories'}</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 font-mono">
                   Live Telemetry
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                {language === 'bn'
-                  ? 'টঙ্গী প্রিন্ট মিল (সাবলিমেশন মিটার) এবং মিরপুর সুইং কারখানা (গার্মেন্ট পিস) এর দৈনিক টার্গেট বনাম প্রকৃত আউটপুট।'
-                  : 'Daily output vs. engineering targets for Tongi Print Mill (meters) and Mirpur Sewing Line (pieces).'}
+                {'Daily output vs. engineering targets for Tongi Print Mill (meters) and Mirpur Sewing Line (pieces).'}
               </p>
             </div>
           </div>
@@ -107,7 +105,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
               metricTab === 'both' ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-400 hover:text-white'
             }`}
           >
-            {language === 'bn' ? 'উভয় কারখানা' : 'Combined View'}
+            {'Combined View'}
           </button>
           <button
             onClick={() => setMetricTab('print')}
@@ -116,7 +114,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
             }`}
           >
             <Printer className="w-3 h-3" />
-            <span>{language === 'bn' ? 'টঙ্গী প্রিন্ট' : 'Tongi Print'}</span>
+            <span>{'Tongi Print'}</span>
           </button>
           <button
             onClick={() => setMetricTab('sewing')}
@@ -125,7 +123,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
             }`}
           >
             <Scissors className="w-3 h-3" />
-            <span>{language === 'bn' ? 'মিরপুর সুইং' : 'Mirpur Sewing'}</span>
+            <span>{'Mirpur Sewing'}</span>
           </button>
         </div>
       </div>
@@ -137,7 +135,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
               <Printer className="w-3.5 h-3.5 text-teal-400" />
-              <span>{language === 'bn' ? 'টঙ্গী প্রিন্ট রোলস' : 'Tongi Print Mill'}</span>
+              <span>{'Tongi Print Mill'}</span>
             </span>
             <span className="text-emerald-400 font-bold font-mono text-[11px]">{printEfficiency}% of Target</span>
           </div>
@@ -161,7 +159,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
               <Scissors className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{language === 'bn' ? 'মিরপুর সেলাই লাইন' : 'Mirpur Sewing Line'}</span>
+              <span>{'Mirpur Sewing Line'}</span>
             </span>
             <span className="text-indigo-400 font-bold font-mono text-[11px]">{sewingEfficiency}% of Target</span>
           </div>
@@ -185,7 +183,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-              <span>{language === 'bn' ? 'ত্রুটি ও শর্টেজ রি-প্রিন্ট' : 'Ruined Pieces Rate'}</span>
+              <span>{'Ruined Pieces Rate'}</span>
             </span>
             <span className="text-emerald-400 font-bold font-mono text-[11px]">99.1% First-Pass Yield</span>
           </div>
@@ -218,13 +216,13 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
                 iconType="circle"
               />
               <Bar
-                name={language === 'bn' ? 'টঙ্গী প্রিন্ট মিটার' : 'Tongi Print (Meters)'}
+                name={'Tongi Print (Meters)'}
                 dataKey="printActual"
                 fill="#10b981"
                 radius={[4, 4, 0, 0]}
               />
               <Bar
-                name={language === 'bn' ? 'মিরপুর সেলাই পিস' : 'Mirpur Sewing (Pieces)'}
+                name={'Mirpur Sewing (Pieces)'}
                 dataKey="sewingActual"
                 fill="#6366f1"
                 radius={[4, 4, 0, 0]}
@@ -246,7 +244,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
               <Area
                 type="monotone"
                 dataKey="printActual"
-                name={language === 'bn' ? 'প্রকৃত প্রিন্ট (মিটার)' : 'Actual Sublimation (Meters)'}
+                name={'Actual Sublimation (Meters)'}
                 stroke="#10b981"
                 strokeWidth={2}
                 fillOpacity={1}
@@ -255,7 +253,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
               <Line
                 type="monotone"
                 dataKey="printTarget"
-                name={language === 'bn' ? 'টার্গেট (৬৫০ মি)' : 'Target Output (650m)'}
+                name={'Target Output (650m)'}
                 stroke="#38bdf8"
                 strokeWidth={2}
                 strokeDasharray="5 5"
@@ -278,7 +276,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
               <Area
                 type="monotone"
                 dataKey="sewingActual"
-                name={language === 'bn' ? 'প্রকৃত সেলাই (পিস)' : 'Actual Stitched (Pieces)'}
+                name={'Actual Stitched (Pieces)'}
                 stroke="#6366f1"
                 strokeWidth={2}
                 fillOpacity={1}
@@ -287,7 +285,7 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
               <Line
                 type="monotone"
                 dataKey="sewingTarget"
-                name={language === 'bn' ? 'টার্গেট (৪৫০ পিস)' : 'Target Output (450 pcs)'}
+                name={'Target Output (450 pcs)'}
                 stroke="#f59e0b"
                 strokeWidth={2}
                 strokeDasharray="5 5"

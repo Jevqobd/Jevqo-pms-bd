@@ -213,9 +213,9 @@ export const ManagersPortal: React.FC<ManagersPortalProps> = ({
                         <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold uppercase">{ord.orderType}</span>
                       </div>
                       <div className="text-[11px] text-gray-500 flex gap-4 mt-1">
-                        <span>Total: <strong>${ord.totalAmount}</strong></span>
-                        <span>Advance: <strong className="text-emerald-600">${ord.advanceAmount}</strong></span>
-                        <span>Due: <strong className="text-amber-600">${ord.dueAmount}</strong></span>
+                        <span>Total: <strong>৳{ord.totalAmount.toLocaleString()}</strong></span>
+                        <span>Advance: <strong className="text-emerald-600">৳{ord.advanceAmount.toLocaleString()}</strong></span>
+                        <span>Due: <strong className="text-amber-600">৳{ord.dueAmount.toLocaleString()}</strong></span>
                         <span>Ref: <strong className="font-mono text-gray-700 dark:text-gray-300">{ord.paymentReference || 'N/A'}</strong></span>
                       </div>
                     </div>
@@ -311,7 +311,7 @@ export const ManagersPortal: React.FC<ManagersPortalProps> = ({
             <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800">
               <span className="text-[10px] text-gray-400 font-bold uppercase">B2B Institutional Volume</span>
               <div className="text-xl font-black text-blue-600 mt-1">
-                ${orders.filter(o => o.orderType === 'b2b').reduce((s,o) => s + o.totalAmount, 0).toLocaleString()}
+                ৳{orders.filter(o => o.orderType === 'b2b').reduce((s,o) => s + o.totalAmount, 0).toLocaleString()} BDT
               </div>
               <span className="text-[10px] text-gray-500">Clubs, Corporate, Schools</span>
             </div>
@@ -319,7 +319,7 @@ export const ManagersPortal: React.FC<ManagersPortalProps> = ({
             <div className="p-4 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800">
               <span className="text-[10px] text-gray-400 font-bold uppercase">B2C Retail & Fan Volume</span>
               <div className="text-xl font-black text-pink-600 mt-1">
-                ${orders.filter(o => o.orderType === 'b2c').reduce((s,o) => s + o.totalAmount, 0).toLocaleString()}
+                ৳{orders.filter(o => o.orderType === 'b2c').reduce((s,o) => s + o.totalAmount, 0).toLocaleString()} BDT
               </div>
               <span className="text-[10px] text-gray-500">Single kits, custom gamertags</span>
             </div>
@@ -334,7 +334,7 @@ export const ManagersPortal: React.FC<ManagersPortalProps> = ({
           </div>
 
           <div className="bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-800 p-4 space-y-3">
-            <h4 className="font-bold text-gray-900 dark:text-white text-xs">Customer Credit Limits & Balances</h4>
+            <h4 className="font-bold text-gray-900 dark:text-white text-xs">Customer Credit Limits & Balances (BDT)</h4>
             <div className="divide-y divide-gray-100 dark:divide-gray-800 text-[11px]">
               {orders.map((ord) => (
                 <div key={ord.id} className="py-2 flex items-center justify-between">
@@ -343,8 +343,8 @@ export const ManagersPortal: React.FC<ManagersPortalProps> = ({
                     <span className="text-gray-400 font-mono text-[10px]">{ord.teamOrClub}</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-mono font-bold text-amber-600 block">Due: ${ord.dueAmount}</span>
-                    <span className="text-[10px] text-gray-400">Total: ${ord.totalAmount}</span>
+                    <span className="font-mono font-bold text-amber-600 block">Due: ৳{ord.dueAmount.toLocaleString()}</span>
+                    <span className="text-[10px] text-gray-400">Total: ৳{ord.totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
               ))}

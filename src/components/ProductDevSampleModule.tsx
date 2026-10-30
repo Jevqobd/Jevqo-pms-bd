@@ -426,9 +426,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
           </span>
           <div>
             <h2 className="text-lg font-black text-white tracking-tight">
-              {language === 'bn'
-                ? 'নতুন পণ্য উন্নয়ন (NPD), টেক-প্যাক ও স্যাম্পল ম্যানেজমেন্ট ল্যাব'
-                : 'New Product Development (NPD), Tech Pack & Sample Management Lab'}
+              {'New Product Development (NPD), Tech Pack & Sample Management Lab'}
             </h2>
             <p className="text-xs text-slate-400">
               End-to-end Sportswear R&amp;D: Tech Packs, BOM Unit Costing, Proto/Fit/Golden PP Samples, Sublimation Color Lab &amp; 1-Click Bulk Job Card Launch
@@ -617,13 +615,13 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                       <div>
                         <span className="text-[10px] text-slate-400 block">BOM Unit Cost</span>
                         <span className="text-xs font-bold text-white">
-                          ${sample.unitProductionCost.toFixed(2)}
+                          ৳{sample.unitProductionCost.toFixed(2)}
                         </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block">B2B Wholesale</span>
                         <span className="text-xs font-bold text-emerald-400">
-                          ${sample.targetWholesalePrice.toFixed(2)}
+                          ৳{sample.targetWholesalePrice.toFixed(2)}
                         </span>
                       </div>
                       <div>
@@ -702,19 +700,19 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                   <div>
                     <span className="text-slate-400 block text-[10px]">Unit Cost</span>
                     <span className="text-white font-black">
-                      ${sample.unitProductionCost.toFixed(2)}
+                      ৳{sample.unitProductionCost.toFixed(2)}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">Wholesale</span>
                     <span className="text-emerald-400 font-black">
-                      ${sample.targetWholesalePrice.toFixed(2)}
+                      ৳{sample.targetWholesalePrice.toFixed(2)}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">Retail MSRP</span>
                     <span className="text-cyan-400 font-black">
-                      ${sample.targetRetailPrice.toFixed(2)}
+                      ৳{sample.targetRetailPrice.toFixed(2)}
                     </span>
                   </div>
                   <div>
@@ -748,10 +746,10 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                           {bom.consumptionPerPc} {bom.unit}
                         </td>
                         <td className="py-2.5 px-4 text-right font-mono tabular-nums text-slate-400">
-                          ${bom.ratePerUnit.toFixed(2)}/{bom.unit}
+                          ৳{bom.ratePerUnit.toFixed(2)}/{bom.unit}
                         </td>
                         <td className="py-2.5 px-4 text-right font-mono font-bold tabular-nums text-emerald-400">
-                          ${bom.costPerPc.toFixed(2)}
+                          ৳{bom.costPerPc.toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -1311,7 +1309,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">
-                    Fabric Rate ($/m)
+                    Fabric Rate (৳/m)
                   </label>
                   <input
                     type="number"
@@ -1325,7 +1323,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">
-                    Ink &amp; Paper ($/pc)
+                    Ink &amp; Paper (৳/pc)
                   </label>
                   <input
                     type="number"
@@ -1350,7 +1348,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">
-                    Wholesale Price ($)
+                    Wholesale Price (BDT ৳)
                   </label>
                   <input
                     type="number"
@@ -1368,7 +1366,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-2 font-mono">
                 <span className="text-slate-400">
                   Calculated BOM Unit Cost:{' '}
-                  <strong className="text-white">${draftCostBreakdown.totalUnitCost}</strong>
+                  <strong className="text-white">৳{draftCostBreakdown.totalUnitCost}</strong>
                 </span>
                 <span className="text-emerald-400 font-bold">
                   Est. Wholesale Margin: {draftCostBreakdown.marginPct}%
@@ -1652,7 +1650,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
                       {b.consumptionPerPc} {b.unit}
                     </td>
                     <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
-                      ${b.costPerPc.toFixed(2)}
+                      ৳{b.costPerPc.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -1687,7 +1685,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
               <p className="text-slate-300">
                 Converts <strong className="text-white">{bulkConvertSample.styleName}</strong>{' '}
                 into a live Production Job Card with pre-approved fabric ({bulkConvertSample.gsm}{' '}
-                GSM), collar ({bulkConvertSample.collarType}), and B2B wholesale pricing ($
+                GSM), collar ({bulkConvertSample.collarType}), and B2B wholesale pricing (৳
                 {bulkConvertSample.targetWholesalePrice}/pc).
               </p>
 
@@ -1707,7 +1705,7 @@ export const ProductDevSampleModule: React.FC<ProductDevSampleModuleProps> = ({
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between font-mono">
                 <span className="text-slate-400">Bulk Order Total Value:</span>
                 <span className="text-base font-black text-emerald-400">
-                  ${(bulkOrderQty * bulkConvertSample.targetWholesalePrice).toLocaleString()}
+                  ৳{(bulkOrderQty * bulkConvertSample.targetWholesalePrice).toLocaleString()}
                 </span>
               </div>
 

@@ -62,18 +62,16 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
   assignedOrders = [],
   assignedInvoices = [],
 }) => {
-  if (!isOpen || !employee) return null;
-
   const defaultPermissions: EmployeePermissions = {
-    canApprovePayments: employee.role === 'owner' || employee.role === 'accountant',
-    canAdvancePrint: employee.role === 'owner' || employee.role === 'print_factory',
-    canAdvanceSewing: employee.role === 'owner' || employee.role === 'sewing_factory',
+    canApprovePayments: employee?.role === 'owner' || employee?.role === 'accountant',
+    canAdvancePrint: employee?.role === 'owner' || employee?.role === 'print_factory',
+    canAdvanceSewing: employee?.role === 'owner' || employee?.role === 'sewing_factory',
     canRaiseShortages: true,
-    canAccessFinancials: employee.role === 'owner' || employee.role === 'accountant',
+    canAccessFinancials: employee?.role === 'owner' || employee?.role === 'accountant',
     canCreateInvoices:
-      employee.role === 'owner' || employee.role === 'marketing' || employee.role === 'accountant',
-    canDisburseSalary: employee.role === 'owner' || employee.role === 'hr_manager',
-    canManageSettings: employee.role === 'owner',
+      employee?.role === 'owner' || employee?.role === 'marketing' || employee?.role === 'accountant',
+    canDisburseSalary: employee?.role === 'owner' || employee?.role === 'hr_manager',
+    canManageSettings: employee?.role === 'owner',
   };
 
   const [activeSubTab, setActiveSubTab] = useState<
@@ -81,38 +79,40 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
   >('profile');
 
   // Editable Profile Fields
-  const [name, setName] = useState(employee.name);
-  const [phone, setPhone] = useState(employee.phone);
-  const [email, setEmail] = useState(employee.email);
-  const [nid, setNid] = useState(employee.nid || '1994269854120');
-  const [pictureUrl, setPictureUrl] = useState(employee.pictureUrl || '');
-  const [designation, setDesignation] = useState(employee.designation);
-  const [post, setPost] = useState(employee.post || 'Senior Specialist');
-  const [department, setDepartment] = useState(employee.department);
-  const [role, setRole] = useState<UserRole>(employee.role);
-  const [location, setLocation] = useState<FactoryLocation>(employee.location);
-  const [shift, setShift] = useState<'morning' | 'evening' | 'general'>(employee.shift);
-  const [baseSalary, setBaseSalary] = useState<number>(employee.baseSalary);
-  const [hourlyOvertimeRate, setHourlyOvertimeRate] = useState<number>(employee.hourlyOvertimeRate);
+  const [name, setName] = useState(employee?.name || '');
+  const [phone, setPhone] = useState(employee?.phone || '');
+  const [email, setEmail] = useState(employee?.email || '');
+  const [nid, setNid] = useState(employee?.nid || '1994269854120');
+  const [pictureUrl, setPictureUrl] = useState(employee?.pictureUrl || '');
+  const [designation, setDesignation] = useState(employee?.designation || '');
+  const [post, setPost] = useState(employee?.post || 'Senior Specialist');
+  const [department, setDepartment] = useState(employee?.department || '');
+  const [role, setRole] = useState<UserRole>(employee?.role || 'floor_worker');
+  const [location, setLocation] = useState<FactoryLocation>(employee?.location || 'head_office');
+  const [shift, setShift] = useState<'morning' | 'evening' | 'general'>(employee?.shift || 'morning');
+  const [baseSalary, setBaseSalary] = useState<number>(employee?.baseSalary || 20000);
+  const [hourlyOvertimeRate, setHourlyOvertimeRate] = useState<number>(
+    employee?.hourlyOvertimeRate || 100
+  );
 
   // Contract Fields
   const [contractStatus, setContractStatus] = useState<
     'permanent' | 'contractual' | 'probation' | 'internship'
-  >(employee.contractStatus || 'permanent');
+  >(employee?.contractStatus || 'permanent');
   const [contractDocumentUrl, setContractDocumentUrl] = useState(
-    employee.contractDocumentUrl || ''
+    employee?.contractDocumentUrl || ''
   );
   const [contractCreatedDate, setContractCreatedDate] = useState(
-    employee.contractCreatedDate || employee.joiningDate || '2026-01-15'
+    employee?.contractCreatedDate || employee?.joiningDate || '2026-01-15'
   );
   const [contractExpiryDate, setContractExpiryDate] = useState(
-    employee.contractExpiryDate || '2028-01-15'
+    employee?.contractExpiryDate || '2028-01-15'
   );
   const [showPrintableContract, setShowPrintableContract] = useState(false);
 
   // Permissions State
   const [permissions, setPermissions] = useState<EmployeePermissions>(
-    employee.permissions || defaultPermissions
+    employee?.permissions || defaultPermissions
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -122,6 +122,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
   const [smsSent, setSmsSent] = useState(false);
 
   useEffect(() => {
+    if (!employee) return;
     setName(employee.name);
     setPhone(employee.phone);
     setEmail(employee.email);
@@ -141,6 +142,8 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
     setContractExpiryDate(employee.contractExpiryDate || '2028-01-15');
     setPermissions(employee.permissions || defaultPermissions);
   }, [employee]);
+
+  if (!isOpen || !employee) return null;
 
   const canEdit = currentRole === 'owner' || currentRole === 'hr_manager' || true;
 
@@ -213,67 +216,51 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
   const permissionLabels: { key: keyof EmployeePermissions; label: string; desc: string }[] = [
     {
       key: 'canApprovePayments',
-      label: language === 'bn' ? 'পেমেন্ট অনুমোদন' : 'Payment Approvals',
+      label: 'Payment Approvals',
       desc:
-        language === 'bn'
-          ? 'অগ্রিম ও বিল পেমেন্ট অনুমোদন করতে পারবেন'
-          : 'Verify customer advance and balance bank payments',
+        'Verify customer advance and balance bank payments',
     },
     {
       key: 'canCreateInvoices',
-      label: language === 'bn' ? 'ইনভয়েস ও কোটেশন তৈরি' : 'Invoices & Quotations',
+      label: 'Invoices & Quotations',
       desc:
-        language === 'bn'
-          ? 'ক্লায়েন্ট ইনভয়েস তৈরি ও ডিসকাউন্ট নির্ধারণ'
-          : 'Issue sales invoices, estimates, and pricing terms',
+        'Issue sales invoices, estimates, and pricing terms',
     },
     {
       key: 'canAdvancePrint',
-      label: language === 'bn' ? 'টঙ্গী প্রিন্ট ফ্লোর অ্যাকশন' : 'Print Factory Control',
+      label: 'Print Factory Control',
       desc:
-        language === 'bn'
-          ? 'সাবলিমেশন পেপার প্রিন্ট ও হিট প্রেস স্ট্যাটাস আপডেট'
-          : 'Queue print rolls, advance heat press, and dispatch to sewing',
+        'Queue print rolls, advance heat press, and dispatch to sewing',
     },
     {
       key: 'canAdvanceSewing',
-      label: language === 'bn' ? 'মিরপুর সুইং লাইন কন্ট্রোল' : 'Sewing Floor Control',
+      label: 'Sewing Floor Control',
       desc:
-        language === 'bn'
-          ? 'ফ্যাব্রিক রিসিভ, কাটিং, সেলাই ও ফিনিশিং সম্পন্ন'
-          : 'Acknowledge bundles, cutting, assembly, and dispatch',
+        'Acknowledge bundles, cutting, assembly, and dispatch',
     },
     {
       key: 'canRaiseShortages',
-      label: language === 'bn' ? 'জরুরি রি-প্রিন্ট রিকুয়েস্ট' : 'Raise Shortage Tickets',
+      label: 'Raise Shortage Tickets',
       desc:
-        language === 'bn'
-          ? 'নষ্ট বা ছেঁড়া পার্টসের রি-প্রিন্ট টিকিট তুলতে পারবেন'
-          : 'Raise urgent replacement tickets for ruined jersey panels',
+        'Raise urgent replacement tickets for ruined jersey panels',
     },
     {
       key: 'canAccessFinancials',
-      label: language === 'bn' ? 'হিসাব ও লেজার অ্যাক্সেস' : 'Financials & Ledgers',
+      label: 'Financials & Ledgers',
       desc:
-        language === 'bn'
-          ? 'ব্যবসায়িক লেজার, খরচ এবং পিঅ্যান্ডএল দেখতে পারবেন'
-          : 'View customer ledgers, vendor balances, and expenses',
+        'View customer ledgers, vendor balances, and expenses',
     },
     {
       key: 'canDisburseSalary',
-      label: language === 'bn' ? 'বেতন বিতরণ ও এইচআর' : 'Salary Disbursement',
+      label: 'Salary Disbursement',
       desc:
-        language === 'bn'
-          ? 'কর্মীদের বেতন ব্যাংক বা বিকাশে ছাড় করতে পারবেন'
-          : 'Process monthly staff payroll and expense posting',
+        'Process monthly staff payroll and expense posting',
     },
     {
       key: 'canManageSettings',
-      label: language === 'bn' ? 'সিস্টেম সেটিংস পরিবর্তন' : 'Enterprise Settings',
+      label: 'Enterprise Settings',
       desc:
-        language === 'bn'
-          ? 'কোম্পানি তথ্য, ফ্যাক্টরি ঠিকানা এবং টার্গেট পরিবর্তন'
-          : 'Edit factory locations, VAT rates, and production targets',
+        'Edit factory locations, VAT rates, and production targets',
     },
   ];
 
@@ -710,9 +697,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     <h4 className="font-black text-sm text-white">
-                      {language === 'bn'
-                        ? 'ভূমিকা ও পারমিশন কন্ট্রোল'
-                        : 'Role-Based Access & Granular Permissions'}
+                      {'Role-Based Access & Granular Permissions'}
                     </h4>
                   </div>
                 </div>
@@ -808,7 +793,7 @@ export const EmployeeProfileModal: React.FC<EmployeeProfileModalProps> = ({
                             <span className="font-mono text-indigo-400 font-bold">
                               {inv.invoiceNumber}
                             </span>
-                            <span className="text-slate-300">${inv.totalAmount.toLocaleString()}</span>
+                            <span className="text-slate-300">৳{inv.totalAmount.toLocaleString()}</span>
                           </div>
                         ))}
                       </div>

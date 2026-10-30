@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   CreditCard,
   ExternalLink,
+  ClipboardPaste,
+  Upload,
 } from 'lucide-react';
 
 interface B2bClientPortalModalProps {
@@ -50,8 +52,6 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
   language = 'en',
   onSendMessageToMarketing,
 }) => {
-  if (!isOpen) return null;
-
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
     customers[0]?.id || ''
   );
@@ -59,8 +59,9 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
   const [printableEstimate, setPrintableEstimate] = useState<Estimate | null>(null);
   const [printableLedger, setPrintableLedger] = useState<boolean>(false);
   const [chatInput, setChatInput] = useState('');
+  const [stagedChatImage, setStagedChatImage] = useState<string | null>(null);
   const [clientMessages, setClientMessages] = useState<
-    { id: string; sender: 'client' | 'marketing'; text: string; time: string }[]
+    { id: string; sender: 'client' | 'marketing'; text: string; time: string; imageUrl?: string }[]
   >([
     {
       id: 'm1',
@@ -81,6 +82,8 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
       time: '11:05 AM',
     },
   ]);
+
+  if (!isOpen) return null;
 
   const activeCustomer =
     customers.find((c) => c.id === selectedCustomerId) || customers[0];
@@ -103,17 +106,41 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
     (l) => l.entityId === activeCustomer?.id || l.entityName === activeCustomer?.name
   );
 
+  const handleClientChatPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === 'string') setStagedChatImage(reader.result);
+          };
+          reader.readAsDataURL(file);
+        }
+        return;
+      }
+    }
+  };
+
   const handleSendClientChat = () => {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() && !stagedChatImage) return;
     const newMsg = {
       id: `cmsg-${Date.now()}`,
       sender: 'client' as const,
-      text: chatInput,
+      text: chatInput || '📷 Sent design screenshot',
+      imageUrl: stagedChatImage || undefined,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setClientMessages((prev) => [...prev, newMsg]);
-    onSendMessageToMarketing?.(activeCustomer?.id || 'cust-1', chatInput);
+    onSendMessageToMarketing?.(
+      activeCustomer?.id || 'cust-1',
+      chatInput || '📷 Client pasted screenshot in portal chat'
+    );
     setChatInput('');
+    setStagedChatImage(null);
 
     // Marketing simulated auto-reply
     setTimeout(() => {
@@ -141,16 +168,14 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base text-white">
-                  {language === 'bn' ? 'বি২বি ক্লায়েন্ট সেলফ-সার্ভিস পোর্টাল' : 'B2B Client Enterprise Portal'}
+                  {'B2B Client Enterprise Portal'}
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   Client View
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                {language === 'bn'
-                  ? 'ক্লায়েন্ট তার অর্ডারের লাইভ স্ট্যাটাস, অনুমোদিত মকআপ, চালান ও লেজার দেখতে ও চ্যাট করতে পারবেন।'
-                  : 'Client dashboard to track order stage, view invoices, print estimate/ledger, and chat with Marketing.'}
+                {'Client dashboard to track order stage, view invoices, print estimate/ledger, and chat with Marketing.'}
               </p>
             </div>
           </div>
@@ -187,7 +212,7 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
               }`}
             >
               <Shirt className="w-3.5 h-3.5" />
-              <span>{language === 'bn' ? 'চলমান অর্ডারসমূহ' : 'My Orders'} ({clientOrders.length})</span>
+              <span>{'My Orders'} ({clientOrders.length})</span>
             </button>
 
             <button
@@ -197,7 +222,7 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>{language === 'bn' ? 'কোটেশন / এস্টিমেট' : 'Estimates & Quotes'} ({clientEstimates.length})</span>
+              <span>{'Estimates & Quotes'} ({clientEstimates.length})</span>
             </button>
 
             <button
@@ -207,7 +232,7 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
               }`}
             >
               <CreditCard className="w-3.5 h-3.5" />
-              <span>{language === 'bn' ? 'ক্লায়েন্ট লেজার স্টেটমেন্ট' : 'Client Ledger'}</span>
+              <span>{'Client Ledger'}</span>
             </button>
 
             <button
@@ -217,7 +242,7 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>{language === 'bn' ? 'মার্কেটিং এর সাথে চ্যাট' : 'Chat with Marketing'}</span>
+              <span>{'Chat with Marketing'}</span>
             </button>
           </div>
 
@@ -434,6 +459,13 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
                         {isMe ? 'You (Client Representative)' : 'Tanvir (Marketing)'}
                       </span>
                       <p>{m.text}</p>
+                      {m.imageUrl && (
+                        <img
+                          src={m.imageUrl}
+                          alt="Chat attachment"
+                          className="mt-2 max-h-40 rounded-lg border border-white/20 object-contain"
+                        />
+                      )}
                       <span className="text-[9px] block text-right mt-1 opacity-60 font-mono">
                         {m.time}
                       </span>
@@ -443,14 +475,87 @@ export const B2bClientPortalModal: React.FC<B2bClientPortalModalProps> = ({
               })}
             </div>
 
-            {/* Chat Input */}
-            <div className="mt-3 flex gap-2">
+            {stagedChatImage && (
+              <div className="mt-2 p-2 rounded-xl bg-slate-950 border border-emerald-500/40 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={stagedChatImage}
+                    alt="Staged screenshot"
+                    className="w-10 h-10 rounded object-cover border border-emerald-500/40"
+                  />
+                  <span className="text-emerald-300 font-bold">
+                    Screenshot attached (Ready to send)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStagedChatImage(null)}
+                  className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Chat Input with Upload & Paste Screenshot */}
+            <div className="mt-3 flex gap-2 items-center">
+              <label
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 cursor-pointer"
+                title="Upload image"
+              >
+                <Upload className="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      if (typeof reader.result === 'string') setStagedChatImage(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    if (navigator.clipboard?.read) {
+                      const items = await navigator.clipboard.read();
+                      for (const item of items) {
+                        const imgType = item.types.find((t) => t.startsWith('image/'));
+                        if (imgType) {
+                          const blob = await item.getType(imgType);
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            if (typeof reader.result === 'string')
+                              setStagedChatImage(reader.result);
+                          };
+                          reader.readAsDataURL(blob);
+                          return;
+                        }
+                      }
+                    }
+                  } catch {
+                    // Fallback to Ctrl+V
+                  }
+                }}
+                className="px-3 py-2.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-800 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="Paste Screenshot (or press Ctrl+V)"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+                <span>Paste</span>
+              </button>
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                onPaste={handleClientChatPaste}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendClientChat()}
-                placeholder="Ask marketing about collar changes, delivery date, or proof..."
+                placeholder="Ask marketing or press Ctrl+V to paste screenshot..."
                 className="flex-1 px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-950 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
               <button

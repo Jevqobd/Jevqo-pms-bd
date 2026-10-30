@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Order,
   SizeBreakdown,
@@ -12,6 +12,7 @@ import {
   OrderDesignImages,
   Employee,
   Customer,
+  DelegatedTask,
 } from '../types/erp';
 import {
   X,
@@ -27,9 +28,13 @@ import {
   Sliders,
   Upload,
   UserCheck,
-  Star,
+  ClipboardPaste,
+  Trash2,
+  CheckCircle2,
+  BellRing,
+  TrendingUp,
 } from 'lucide-react';
-import { calculateOrderTotals, parseRosterInput } from '../utils/erpLogic';
+import { calculateOrderTotals, calculateFabricConsumption, parseRosterInput } from '../utils/erpLogic';
 import { askGeminiProductionCopilot } from '../services/geminiService';
 import { useFormDraft } from '../utils/useFormDraft';
 
@@ -37,19 +42,26 @@ interface CreateOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateOrder: (order: Order) => Promise<void>;
+  onDelegateTask?: (task: Omit<DelegatedTask, 'id' | 'createdAt' | 'status'>) => void;
   employees?: Employee[];
   customers?: Customer[];
+  currentUserName?: string;
+  currentUserPosition?: string;
 }
+
+type DesignTargetSlot = 'front' | 'back' | 'sleeve' | 'collar' | 'paymentProof';
 
 export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   isOpen,
   onClose,
   onCreateOrder,
+  onDelegateTask,
   employees = [],
   customers = [],
+  currentUserName = 'Management Desk',
+  currentUserPosition = 'Operations Lead',
 }) => {
-  if (!isOpen) return null;
-
+  // All hooks MUST run unconditionally before `if (!isOpen) return null;`
   const {
     draft: formDraft,
     updateField: updateDraftField,
@@ -66,8 +78,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     collarType: 'V-Neck',
     customCollarNote: '',
     assignedEmployeeId: '',
-    unitPrice: 16.0,
-    advanceAmount: 150.0,
+    taskPriority: 'high' as 'normal' | 'high' | 'urgent',
+    taskInstructions: 'Prepare full jersey layout & collar specifications for immediate pre-press.',
+    taskDueTime: 'Today 5:00 PM',
+    unitPrice: 450,
+    advanceAmount: 5000,
     paymentReference: '',
     paymentProofUrl: '',
     deliveryAddress: '',
@@ -98,6 +113,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     collarType,
     customCollarNote,
     assignedEmployeeId,
+    taskPriority,
+    taskInstructions,
+    taskDueTime,
     unitPrice,
     advanceAmount,
     paymentReference,
@@ -127,6 +145,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   const setCollarType = (v: string) => updateDraftField('collarType', v);
   const setCustomCollarNote = (v: string) => updateDraftField('customCollarNote', v);
   const setAssignedEmployeeId = (v: string) => updateDraftField('assignedEmployeeId', v);
+  const setTaskPriority = (v: 'normal' | 'high' | 'urgent') => updateDraftField('taskPriority', v);
+  const setTaskInstructions = (v: string) => updateDraftField('taskInstructions', v);
+  const setTaskDueTime = (v: string) => updateDraftField('taskDueTime', v);
   const setUnitPrice = (v: number) => updateDraftField('unitPrice', v);
   const setAdvanceAmount = (v: number) => updateDraftField('advanceAmount', v);
   const setPaymentReference = (v: string) => updateDraftField('paymentReference', v);
@@ -159,6 +180,87 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   const [isAiParsing, setIsAiParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showApprovalSheet, setShowApprovalSheet] = useState(false);
+  const [activePasteSlot, setActivePasteSlot] = useState<DesignTargetSlot>('front');
+  const [pasteFeedback, setPasteFeedback] = useState<string | null>(null);
+
+  const applyImageToSlot = (slot: DesignTargetSlot, dataUrl: string) => {
+    if (slot === 'front') setFrontUrl(dataUrl);
+    else if (slot === 'back') setBackUrl(dataUrl);
+    else if (slot === 'sleeve') setSleeveUrl(dataUrl);
+    else if (slot === 'collar') setCollarUrl(dataUrl);
+    else if (slot === 'paymentProof') setPaymentProofUrl(dataUrl);
+
+    const slotLabel =
+      slot === 'front'
+        ? 'Front Design Panel'
+        : slot === 'back'
+        ? 'Back Design Panel'
+        : slot === 'sleeve'
+        ? 'Sleeve Artwork'
+        : slot === 'collar'
+        ? 'Collar Detail'
+        : 'Payment Proof';
+
+    setPasteFeedback(`DONE: Design image / screenshot attached to ${slotLabel}!`);
+    setTimeout(() => setPasteFeedback(null), 4000);
+  };
+
+  const readBlobAsDataUrl = (blob: Blob, targetSlot: DesignTargetSlot) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        applyImageToSlot(targetSlot, reader.result);
+      }
+    };
+    reader.readAsDataURL(blob);
+  };
+
+  // Global & local Ctrl+V screenshot paste handler when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            readBlobAsDataUrl(file, activePasteSlot);
+          }
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [isOpen, activePasteSlot]);
+
+  const handleClipboardButtonPaste = async (targetSlot: DesignTargetSlot = activePasteSlot) => {
+    setActivePasteSlot(targetSlot);
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imageType = item.types.find((t) => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            readBlobAsDataUrl(blob, targetSlot);
+            return;
+          }
+        }
+      }
+      setPasteFeedback('Press Ctrl+V (or Cmd+V) on your keyboard to paste screenshot directly!');
+      setTimeout(() => setPasteFeedback(null), 4000);
+    } catch {
+      setPasteFeedback('Ready! Press Ctrl+V (or Cmd+V) on your keyboard to paste screenshot.');
+      setTimeout(() => setPasteFeedback(null), 4000);
+    }
+  };
+
+  if (!isOpen) return null;
 
   // Compute total qty from size breakdown
   const totalQuantity = Object.values(sizeBreakdown).reduce((a, b) => a + (b || 0), 0);
@@ -167,6 +269,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     : 0;
 
   const totals = calculateOrderTotals(totalQuantity, unitPrice, advanceAmount);
+  const bomEstimate = calculateFabricConsumption(sizeBreakdown, fabricType);
+  const estimatedRawCostPerPc = Math.round(unitPrice * 0.44);
+  const estimatedGrossProfit = Math.max(0, totals.totalAmount - totalQuantity * estimatedRawCostPerPc);
+  const estimatedMarginPct =
+    totals.totalAmount > 0 ? Math.round((estimatedGrossProfit / totals.totalAmount) * 100) : 0;
 
   const handleSizeChange = (sizeKey: string, val: number) => {
     setSizeBreakdown((prev) => ({
@@ -184,17 +291,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
 
   const handleImageFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (val: string) => void
+    slot: DesignTargetSlot
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setter(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    readBlobAsDataUrl(file, slot);
   };
 
   const handleParseRosterWithAi = async () => {
@@ -283,7 +384,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       hasShortage: 'no',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: 'marketing@sportswear.erp',
+      createdBy: currentUserName,
     };
   };
 
@@ -295,6 +396,25 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     try {
       const newOrder = buildOrderObject();
       await onCreateOrder(newOrder);
+
+      if (selectedEmployee && onDelegateTask) {
+        onDelegateTask({
+          title: `New Job Card Assigned: ${newOrder.orderNumber} (${newOrder.teamOrClub})`,
+          description:
+            taskInstructions ||
+            `Execute ${newOrder.totalQuantity} pcs (${newOrder.fabricType}, ${newOrder.collarType}) for ${newOrder.clientName}.`,
+          orderNumber: newOrder.orderNumber,
+          assignedToEmployeeId: selectedEmployee.id,
+          assignedToEmployeeName: selectedEmployee.name,
+          assignedToPosition: selectedEmployee.designation,
+          assignedToRole: selectedEmployee.role,
+          delegatedByEmployeeName: currentUserName,
+          delegatedByPosition: currentUserPosition,
+          priority: taskPriority,
+          dueTime: taskDueTime || 'Today 5:00 PM',
+        });
+      }
+
       clearOrderDraft();
       onClose();
     } catch (err) {
@@ -306,18 +426,24 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto print:hidden">
+      <div
+        data-testid="create-order-modal"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto print:hidden"
+      >
         <div className="relative w-full max-w-4xl bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-800 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150 text-slate-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/70">
+          {/* Upgraded Industrial Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/40">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-inner">
                 <Plus className="w-5 h-5 stroke-[2.5]" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-widest">
+                    NEW JOB CARD STUDIO v2.5
+                  </span>
                   <h2 className="text-lg font-black text-white">
-                    Create Sportswear Job Card & Spec Sheet
+                    Create Sportswear Job Order Sheet & Spec (৳ BDT)
                   </h2>
                   {lastSavedAt && (
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-mono">
@@ -326,10 +452,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Marketing Desk &bull; Auto-saves draft until Cancelled or Saved &bull; Upload Mockups & PDF Approval
+                  Upload Design Images or Paste Screenshot (Ctrl+V) • Instant Task Delegation & Sound • Print Approval PDF
                 </p>
               </div>
             </div>
+
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -338,7 +465,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 title="Preview & Print Customer Approval Sign-off Sheet"
               >
                 <FileCheck className="w-3.5 h-3.5" />
-                <span>Print / PDF Approval Sheet</span>
+                <span>Print / PDF Sheet</span>
               </button>
               <button
                 onClick={onClose}
@@ -351,13 +478,13 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
-            {/* Section 1: Customer Details & Dedicated Employee */}
-            <div className="space-y-3">
+            {/* Section 1: Customer Details & Dedicated Employee Delegation */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-bold text-white flex items-center gap-1.5 text-xs uppercase tracking-wider text-indigo-400">
-                  <Users className="w-3.5 h-3.5" /> 1. Client Profile & Dedicated Account Handler
+                <h3 className="font-black flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-400">
+                  <Users className="w-3.5 h-3.5" /> 1. Client Profile & Instant Task Delegation
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {customers.length > 0 && (
                     <select
                       onChange={(e) => {
@@ -369,27 +496,28 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                           setOrderType(cust.type);
                           const discountPct = cust.discountPrivilegePercent || 0;
                           if (discountPct > 0) {
-                            setUnitPrice(Number((16 * (1 - discountPct / 100)).toFixed(2)));
+                            setUnitPrice(Math.round(450 * (1 - discountPct / 100)));
                           }
                         }
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-slate-950 border border-amber-500/40 text-amber-300 text-[11px] font-bold cursor-pointer"
+                      className="px-2.5 py-1 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-300 text-[11px] font-bold cursor-pointer"
                     >
                       <option value="">⭐ Quick-Fill from Returning CRM Customer...</option>
                       {customers.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name} ({c.companyOrClub}) • {c.returningRatio ?? 85}% Returning • {c.discountPrivilegePercent ?? 0}% VIP Off
+                          {c.name} ({c.companyOrClub}) • {c.returningRatio ?? 85}% Returning •{' '}
+                          {c.discountPrivilegePercent ?? 0}% VIP Off
                         </option>
                       ))}
                     </select>
                   )}
-                  <div className="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+                  <div className="flex bg-slate-900 p-0.5 rounded-xl border border-slate-700">
                     <button
                       type="button"
                       onClick={() => setOrderType('b2b')}
                       className={`px-3 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                         orderType === 'b2b'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -400,7 +528,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                       onClick={() => setOrderType('b2c')}
                       className={`px-3 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
                         orderType === 'b2c'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -409,7 +537,8 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="font-semibold text-slate-300 block mb-1">
                     Client / Organization Name *
@@ -420,7 +549,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="e.g. Bangladesh Football Academy"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white font-medium focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-medium focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -433,7 +562,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="+880 1712-345678"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white font-medium focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-medium focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -447,20 +576,24 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="e.g. Thunder FC Kit"
                     value={teamOrClub}
                     onChange={(e) => setTeamOrClub(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white font-medium focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-medium focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
+              </div>
 
+              {/* Instant Task Delegation Sub-bar inside Job Card */}
+              <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-300 block mb-1 flex items-center gap-1">
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" /> Dedicated Employee
+                  <label className="font-bold text-amber-300 block mb-1 flex items-center gap-1">
+                    <BellRing className="w-3.5 h-3.5 text-amber-400" /> Delegate To Employee (Instant Alert)
                   </label>
                   <select
+                    data-testid="jobcard-delegate-select"
                     value={assignedEmployeeId}
                     onChange={(e) => setAssignedEmployeeId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-emerald-300 font-bold focus:border-emerald-500 focus:outline-none"
+                    className="w-full p-2 rounded-xl border border-amber-500/40 bg-slate-900 text-amber-300 font-bold focus:border-amber-400 focus:outline-none"
                   >
-                    <option value="">Auto-Assign Department Lead</option>
+                    <option value="">-- Select Staff for Instant Delegation --</option>
                     {employees.map((emp) => (
                       <option key={emp.id} value={emp.id}>
                         {emp.name} ({emp.designation})
@@ -468,13 +601,50 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label className="font-semibold text-slate-300 block mb-1">Task Priority</label>
+                  <select
+                    value={taskPriority}
+                    onChange={(e) => setTaskPriority(e.target.value as any)}
+                    className="w-full p-2 rounded-xl border border-slate-700 bg-slate-900 text-white font-bold"
+                  >
+                    <option value="urgent">🚨 URGENT PRIORITY</option>
+                    <option value="high">⚡ HIGH PRIORITY</option>
+                    <option value="normal">NORMAL PRIORITY</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-300 block mb-1">Target Due Time</label>
+                  <input
+                    type="text"
+                    value={taskDueTime}
+                    onChange={(e) => setTaskDueTime(e.target.value)}
+                    placeholder="e.g. Today 5:00 PM"
+                    className="w-full p-2 rounded-xl border border-slate-700 bg-slate-900 text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-300 block mb-1">
+                    Delegation Instructions
+                  </label>
+                  <input
+                    type="text"
+                    value={taskInstructions}
+                    onChange={(e) => setTaskInstructions(e.target.value)}
+                    placeholder="Specific instructions for assignee..."
+                    className="w-full p-2 rounded-xl border border-slate-700 bg-slate-900 text-white"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Section 2: Garment Specs, Collar Type & Fabric */}
-            <div className="space-y-3">
-              <h3 className="font-bold text-white flex items-center gap-1.5 text-xs uppercase tracking-wider text-indigo-400">
-                <Layers className="w-3.5 h-3.5" /> 2. Sport, Collar Type & Fabric Sublimation
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-3">
+              <h3 className="font-black flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-400">
+                <Layers className="w-3.5 h-3.5" /> 2. Sport, Collar Type & Fabric Sublimation Spec
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
@@ -482,7 +652,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   <select
                     value={sportType}
                     onChange={(e) => setSportType(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white font-medium focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-medium focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="Football / Soccer">Football / Soccer</option>
                     <option value="Cricket">Cricket</option>
@@ -499,7 +669,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   <select
                     value={collarType}
                     onChange={(e) => setCollarType(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-emerald-400 font-bold focus:border-emerald-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-emerald-400 font-bold focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="Round Neck">Round Neck (Crew Neck)</option>
                     <option value="V-Neck">V-Neck (Athletic Cut)</option>
@@ -518,7 +688,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="e.g. Black gold-striped flat-knit collar"
                     value={customCollarNote}
                     onChange={(e) => setCustomCollarNote(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -533,7 +703,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                       else if (e.target.value.includes('130')) setGsm(130);
                       else setGsm(160);
                     }}
-                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white font-medium focus:border-indigo-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-white font-medium focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="Micro-Eyelet 160 GSM">Micro-Eyelet 160 GSM (Popular)</option>
                     <option value="Poly Interlock 180 GSM">Poly Interlock 180 GSM (Durable)</option>
@@ -547,133 +717,318 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               </div>
             </div>
 
-            {/* Section 3: Design Mockup Images Upload / Links */}
-            <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-1.5 text-xs uppercase tracking-wider text-indigo-400">
-                  <ImageIcon className="w-3.5 h-3.5" /> 3. Upload Design Mockup Images (Front, Back, Sleeves, Collar)
-                </h3>
-                <span className="text-[11px] text-slate-400">
-                  Upload local image file or paste URL
-                </span>
+            {/* Section 3: Design Mockup Images Upload OR Paste Screenshot */}
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-emerald-500/30 space-y-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-black flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-400">
+                    <ImageIcon className="w-4 h-4" /> 3. Add Design Images by File Upload OR Paste Screenshot (Ctrl+V)
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Select target panel below and press Ctrl+V anywhere, or click "Paste Screenshot" / "Upload"
+                  </p>
+                </div>
+
+                {/* Quick Screenshot Paste Bar */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={activePasteSlot}
+                    onChange={(e) => setActivePasteSlot(e.target.value as DesignTargetSlot)}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-emerald-300 font-bold text-[11px] cursor-pointer"
+                    title="Target slot for Ctrl+V screenshot paste"
+                  >
+                    <option value="front">Paste Target: Front Panel</option>
+                    <option value="back">Paste Target: Back Panel</option>
+                    <option value="sleeve">Paste Target: Sleeve Artwork</option>
+                    <option value="collar">Paste Target: Collar Detail</option>
+                    <option value="paymentProof">Paste Target: Payment Receipt</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => handleClipboardButtonPaste(activePasteSlot)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-md shadow-emerald-950/50 cursor-pointer transition"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5" />
+                    <span>Paste Screenshot (Ctrl+V)</span>
+                  </button>
+                </div>
               </div>
+
+              {pasteFeedback && (
+                <div className="px-3.5 py-2 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{pasteFeedback}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                {/* Front */}
-                <div className="space-y-1.5">
+                {/* Front Panel */}
+                <div
+                  onClick={() => setActivePasteSlot('front')}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                    activePasteSlot === 'front'
+                      ? 'border-emerald-500 bg-emerald-950/15'
+                      : 'border-slate-800 bg-slate-900/70 hover:border-slate-700'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="font-semibold text-slate-400">Front Panel</label>
-                    <label className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setFrontUrl)}
-                        className="hidden"
-                      />
-                    </label>
+                    <label className="font-bold text-slate-200 text-[11px]">Front Panel</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipboardButtonPaste('front');
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer"
+                        title="Paste Screenshot into Front Panel"
+                      >
+                        <ClipboardPaste className="w-2.5 h-2.5" />
+                        <span>Paste</span>
+                      </button>
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-bold cursor-pointer flex items-center gap-0.5"
+                      >
+                        <Upload className="w-2.5 h-2.5" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, 'front')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <input
                     type="text"
                     value={frontUrl}
                     onChange={(e) => setFrontUrl(e.target.value)}
-                    placeholder="https://... front image"
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-[11px]"
+                    placeholder="Image URL or press Ctrl+V here..."
+                    className="w-full p-1.5 rounded-lg border border-slate-700 bg-slate-950 text-white text-[11px]"
                   />
-                  {frontUrl && (
-                    <div className="h-20 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
+                  {frontUrl ? (
+                    <div className="relative h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center group">
                       <img src={frontUrl} alt="Front preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFrontUrl('');
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-rose-600/90 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-24 rounded-lg border border-dashed border-slate-700 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2 text-center">
+                      <ClipboardPaste className="w-4 h-4 text-emerald-400 mb-1" />
+                      <span>Click & press Ctrl+V to paste screenshot</span>
                     </div>
                   )}
                 </div>
 
-                {/* Back */}
-                <div className="space-y-1.5">
+                {/* Back Panel */}
+                <div
+                  onClick={() => setActivePasteSlot('back')}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                    activePasteSlot === 'back'
+                      ? 'border-emerald-500 bg-emerald-950/15'
+                      : 'border-slate-800 bg-slate-900/70 hover:border-slate-700'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="font-semibold text-slate-400">Back Panel</label>
-                    <label className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setBackUrl)}
-                        className="hidden"
-                      />
-                    </label>
+                    <label className="font-bold text-slate-200 text-[11px]">Back Panel</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipboardButtonPaste('back');
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <ClipboardPaste className="w-2.5 h-2.5" />
+                        <span>Paste</span>
+                      </button>
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-bold cursor-pointer flex items-center gap-0.5"
+                      >
+                        <Upload className="w-2.5 h-2.5" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, 'back')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <input
                     type="text"
                     value={backUrl}
                     onChange={(e) => setBackUrl(e.target.value)}
-                    placeholder="https://... back image"
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-[11px]"
+                    placeholder="Image URL or press Ctrl+V here..."
+                    className="w-full p-1.5 rounded-lg border border-slate-700 bg-slate-950 text-white text-[11px]"
                   />
-                  {backUrl && (
-                    <div className="h-20 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
+                  {backUrl ? (
+                    <div className="relative h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center group">
                       <img src={backUrl} alt="Back preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBackUrl('');
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-rose-600/90 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-24 rounded-lg border border-dashed border-slate-700 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2 text-center">
+                      <ClipboardPaste className="w-4 h-4 text-emerald-400 mb-1" />
+                      <span>Click & press Ctrl+V to paste screenshot</span>
                     </div>
                   )}
                 </div>
 
-                {/* Sleeve */}
-                <div className="space-y-1.5">
+                {/* Sleeve Artwork */}
+                <div
+                  onClick={() => setActivePasteSlot('sleeve')}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                    activePasteSlot === 'sleeve'
+                      ? 'border-emerald-500 bg-emerald-950/15'
+                      : 'border-slate-800 bg-slate-900/70 hover:border-slate-700'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="font-semibold text-slate-400">Sleeve Artwork</label>
-                    <label className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setSleeveUrl)}
-                        className="hidden"
-                      />
-                    </label>
+                    <label className="font-bold text-slate-200 text-[11px]">Sleeve Artwork</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipboardButtonPaste('sleeve');
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <ClipboardPaste className="w-2.5 h-2.5" />
+                        <span>Paste</span>
+                      </button>
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-bold cursor-pointer flex items-center gap-0.5"
+                      >
+                        <Upload className="w-2.5 h-2.5" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, 'sleeve')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <input
                     type="text"
                     value={sleeveUrl}
                     onChange={(e) => setSleeveUrl(e.target.value)}
-                    placeholder="https://... sleeve detail"
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-[11px]"
+                    placeholder="Image URL or press Ctrl+V here..."
+                    className="w-full p-1.5 rounded-lg border border-slate-700 bg-slate-950 text-white text-[11px]"
                   />
                   {sleeveUrl ? (
-                    <div className="h-20 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
+                    <div className="relative h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center group">
                       <img src={sleeveUrl} alt="Sleeve preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSleeveUrl('');
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-rose-600/90 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="h-20 rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-[10px] text-slate-500">
-                      Left & Right Sleeve Logos
+                    <div className="h-24 rounded-lg border border-dashed border-slate-700 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2 text-center">
+                      <ClipboardPaste className="w-4 h-4 text-emerald-400 mb-1" />
+                      <span>Paste (Ctrl+V) or upload Sleeve Artwork</span>
                     </div>
                   )}
                 </div>
 
-                {/* Collar */}
-                <div className="space-y-1.5">
+                {/* Collar Detail */}
+                <div
+                  onClick={() => setActivePasteSlot('collar')}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer space-y-2 ${
+                    activePasteSlot === 'collar'
+                      ? 'border-emerald-500 bg-emerald-950/15'
+                      : 'border-slate-800 bg-slate-900/70 hover:border-slate-700'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="font-semibold text-slate-400">Collar Detail</label>
-                    <label className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setCollarUrl)}
-                        className="hidden"
-                      />
-                    </label>
+                    <label className="font-bold text-slate-200 text-[11px]">Collar Detail</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipboardButtonPaste('collar');
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <ClipboardPaste className="w-2.5 h-2.5" />
+                        <span>Paste</span>
+                      </button>
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-bold cursor-pointer flex items-center gap-0.5"
+                      >
+                        <Upload className="w-2.5 h-2.5" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, 'collar')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <input
                     type="text"
                     value={collarUrl}
                     onChange={(e) => setCollarUrl(e.target.value)}
-                    placeholder="https://... collar detail"
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white text-[11px]"
+                    placeholder="Image URL or press Ctrl+V here..."
+                    className="w-full p-1.5 rounded-lg border border-slate-700 bg-slate-950 text-white text-[11px]"
                   />
                   {collarUrl ? (
-                    <div className="h-20 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
+                    <div className="relative h-24 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center group">
                       <img src={collarUrl} alt="Collar preview" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollarUrl('');
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-rose-600/90 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="h-20 rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-[10px] text-slate-500">
-                      Collar & Neck Tape Detail
+                    <div className="h-24 rounded-lg border border-dashed border-slate-700 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2 text-center">
+                      <ClipboardPaste className="w-4 h-4 text-emerald-400 mb-1" />
+                      <span>Paste (Ctrl+V) or upload Collar Detail</span>
                     </div>
                   )}
                 </div>
@@ -689,18 +1044,18 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     id="includeShortsCheck"
                     checked={includeShorts}
                     onChange={(e) => setIncludeShorts(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-0 bg-slate-800 border-slate-700 cursor-pointer"
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-0 bg-slate-800 border-slate-700 cursor-pointer"
                   />
                   <label
                     htmlFor="includeShortsCheck"
                     className="font-bold text-white text-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <Sliders className="w-3.5 h-3.5 text-indigo-400" />
-                    Include Matching Shorts Set ({shortsTotalQty} pcs)
+                    <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+                    4. Include Matching Shorts Set ({shortsTotalQty} pcs)
                   </label>
                 </div>
                 {includeShorts && (
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700 text-indigo-300">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-700 text-emerald-300">
                     Shorts Linked to Job Card
                   </span>
                 )}
@@ -776,12 +1131,17 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
             {/* Section 5: Jersey Roster & Size Breakdown */}
             <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <h3 className="font-bold text-white flex items-center gap-1.5 text-xs uppercase tracking-wider text-indigo-400">
+                <h3 className="font-black flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-400">
                   <Users className="w-3.5 h-3.5" /> 5. Jersey Sizes & Team Roster
                 </h3>
-                <span className="font-extrabold text-indigo-400 font-mono text-xs">
-                  Jersey Total: {totalQuantity} pcs
-                </span>
+                <div className="flex items-center gap-3 text-[11px] font-mono">
+                  <span className="text-slate-400">
+                    Est. Fabric: <strong className="text-white">{bomEstimate.fabricMeters}m</strong> • Paper: <strong className="text-white">{bomEstimate.transferPaperMeters}m</strong>
+                  </span>
+                  <span className="font-extrabold text-emerald-400 text-xs">
+                    Jersey Total: {totalQuantity} pcs
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-5 gap-2">
@@ -805,15 +1165,15 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               <div className="space-y-1.5 pt-2 border-t border-slate-800">
                 <div className="flex items-center justify-between">
                   <label className="font-semibold text-slate-300">
-                    Paste Raw Player Roster (Gemini AI Smart Parser)
+                    Paste Raw Player Roster (AI Smart Parser)
                   </label>
                   <button
                     type="button"
                     onClick={handleParseRosterWithAi}
                     disabled={isAiParsing || !rawRosterInput.trim()}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 disabled:opacity-50 cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5 animate-pulse text-indigo-400" />
+                    <Sparkles className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
                     <span>{isAiParsing ? 'Analyzing...' : 'Parse Roster & Quantities'}</span>
                   </button>
                 </div>
@@ -835,52 +1195,67 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               </div>
             </div>
 
-            {/* Section 6: Pricing & Advance Payment */}
-            <div>
-              <h3 className="font-bold text-white mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-indigo-400">
-                <DollarSign className="w-3.5 h-3.5" /> 6. Pricing, Delivery & Advance Payment Proof
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            {/* Section 6: Pricing (BDT ৳), Live Profit Margin Estimator & Advance Payment */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-black flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-400">
+                  <DollarSign className="w-3.5 h-3.5" /> 6. Pricing (BDT ৳), Live Margin Estimator & Payment Proof
+                </h3>
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-emerald-950/70 border border-emerald-500/30 text-[11px] font-mono">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-slate-300">
+                    Est. Gross Profit: <strong className="text-emerald-400">৳{estimatedGrossProfit.toLocaleString()} BDT</strong> ({estimatedMarginPct}% Margin)
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
                 <div>
-                  <label className="font-semibold text-slate-400 block mb-1">Unit Price ($)</label>
+                  <label className="font-semibold text-slate-400 block mb-1">
+                    Unit Price (৳ BDT)
+                  </label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="1"
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 font-bold text-white"
+                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-950 font-bold text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-400 block mb-1">Total Bill ($)</label>
+                  <label className="font-semibold text-slate-400 block mb-1">
+                    Total Bill (৳ BDT)
+                  </label>
                   <div className="p-2 rounded-lg bg-slate-800 font-extrabold text-sm text-white">
-                    ${totals.totalAmount}
+                    ৳{totals.totalAmount.toLocaleString()} BDT
                   </div>
                 </div>
 
                 <div>
                   <label className="font-semibold text-slate-400 block mb-1">
-                    Advance Received ($)
+                    Advance Received (৳ BDT)
                   </label>
                   <input
                     type="number"
-                    step="10"
+                    step="50"
                     value={advanceAmount}
                     onChange={(e) => setAdvanceAmount(parseFloat(e.target.value) || 0)}
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 font-bold text-emerald-400"
+                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-950 font-bold text-emerald-400"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-400 block mb-1">Due Amount ($)</label>
+                  <label className="font-semibold text-slate-400 block mb-1">
+                    Due Amount (৳ BDT)
+                  </label>
                   <div className="p-2 rounded-lg bg-amber-950/40 border border-amber-800/40 font-extrabold text-sm text-amber-300">
-                    ${totals.dueAmount}
+                    ৳{totals.dueAmount.toLocaleString()} BDT
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="font-semibold text-slate-300 block mb-1">
                     Delivery Destination
@@ -890,7 +1265,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="Dhaka / Banani / Chittagong Courier"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-800/80 text-white"
+                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white"
                   />
                 </div>
 
@@ -903,42 +1278,53 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                     placeholder="e.g. City Bank Slip / bKash Txn ID"
                     value={paymentReference}
                     onChange={(e) => setPaymentReference(e.target.value)}
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-800/80 text-white font-mono"
+                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white font-mono"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="font-semibold text-slate-300">Payment Proof Image</label>
-                    <label className="text-[10px] text-emerald-400 font-bold cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload Slip
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFileUpload(e, setPaymentProofUrl)}
-                        className="hidden"
-                      />
-                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleClipboardButtonPaste('paymentProof')}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <ClipboardPaste className="w-3 h-3" />
+                        <span>Paste</span>
+                      </button>
+                      <label className="text-[10px] text-indigo-400 font-bold cursor-pointer flex items-center gap-0.5">
+                        <Upload className="w-3 h-3" />
+                        <span>Upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, 'paymentProof')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <input
                     type="text"
-                    placeholder="https://... receipt image"
+                    placeholder="https://... receipt or paste screenshot"
                     value={paymentProofUrl}
                     onChange={(e) => setPaymentProofUrl(e.target.value)}
-                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-800/80 text-white"
+                    className="w-full p-2 rounded-lg border border-slate-700 bg-slate-900 text-white"
                   />
                 </div>
               </div>
             </div>
 
             {/* Submit & Action Buttons */}
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setShowApprovalSheet(true)}
                 className="px-4 py-2 border border-slate-700 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition cursor-pointer"
               >
-                <Printer className="w-4 h-4 text-indigo-400" />
+                <Printer className="w-4 h-4 text-emerald-400" />
                 <span>Print / Save PDF Customer Approval</span>
               </button>
               <div className="flex gap-2">
@@ -954,11 +1340,16 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 </button>
                 <button
                   type="submit"
+                  data-testid="submit-create-order-btn"
                   disabled={isSubmitting || totalQuantity <= 0}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition disabled:opacity-50 cursor-pointer"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition disabled:opacity-50 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Create Order & Generate Job Card</span>
+                  <span>
+                    {selectedEmployee
+                      ? `Create Job Card & Delegate to ${selectedEmployee.name}`
+                      : 'Create Order & Generate Job Card'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -970,9 +1361,9 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
       {showApprovalSheet && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
           <div className="relative w-full max-w-4xl bg-white text-slate-900 rounded-2xl shadow-2xl p-8 border border-slate-300 my-8">
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-200 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-6 border-b border-slate-200 print:hidden">
               <div className="flex items-center gap-2">
-                <FileCheck className="w-6 h-6 text-indigo-600" />
+                <FileCheck className="w-6 h-6 text-emerald-600" />
                 <h3 className="text-lg font-black text-slate-900">
                   Customer Garment Design & Spec Approval Sheet
                 </h3>
@@ -980,7 +1371,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow transition cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow transition cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Print / Save as PDF</span>
@@ -995,21 +1386,21 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
             </div>
 
             <div className="space-y-6 text-xs">
-              <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4">
+              <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4">
                 <div>
-                  <h1 className="text-xl font-black text-indigo-950 uppercase tracking-wide">
+                  <h1 className="text-xl font-black text-slate-950 uppercase tracking-wide">
                     RIDWEAR SPORTSWEAR MFG.
                   </h1>
                   <p className="text-slate-600 text-[11px]">
                     Head Office: House 42, Road 11, Block D, Banani, Dhaka 1213
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    Print Factory: Tongi Industrial Zone &bull; Sewing Factory: Mirpur-10
+                    Print Factory: Tongi Industrial Zone • Sewing Factory: Mirpur-10
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="inline-block bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg">
-                    <span className="font-mono font-bold text-indigo-800 text-sm">
+                  <div className="inline-block bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
+                    <span className="font-mono font-bold text-emerald-800 text-sm">
                       CUSTOMER APPROVAL SHEET
                     </span>
                   </div>
@@ -1043,13 +1434,13 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                   </p>
                   <p className="text-slate-800">
                     <span className="font-bold">Collar Type:</span>{' '}
-                    <span className="font-black text-indigo-700 uppercase">
+                    <span className="font-black text-emerald-700 uppercase">
                       {collarType.replace('_', ' ')} {customCollarNote ? `(${customCollarNote})` : ''}
                     </span>
                   </p>
                   <p className="text-slate-800">
                     <span className="font-bold">Total Jersey Units:</span>{' '}
-                    <span className="font-black text-indigo-700">{totalQuantity} pcs</span>
+                    <span className="font-black text-emerald-700">{totalQuantity} pcs</span>
                   </p>
                 </div>
               </div>
@@ -1122,7 +1513,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                       <th className="p-1.5 border border-slate-300">Size L</th>
                       <th className="p-1.5 border border-slate-300">Size XL</th>
                       <th className="p-1.5 border border-slate-300">Size 2XL</th>
-                      <th className="p-1.5 border border-slate-300 bg-indigo-50 font-black">
+                      <th className="p-1.5 border border-slate-300 bg-emerald-50 font-black">
                         Total Jersey
                       </th>
                     </tr>
@@ -1134,7 +1525,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                       <td className="p-1.5 border border-slate-300">{sizeBreakdown.L || 0}</td>
                       <td className="p-1.5 border border-slate-300">{sizeBreakdown.XL || 0}</td>
                       <td className="p-1.5 border border-slate-300">{sizeBreakdown['2XL'] || 0}</td>
-                      <td className="p-1.5 border border-slate-300 bg-indigo-50 font-black text-indigo-700">
+                      <td className="p-1.5 border border-slate-300 bg-emerald-50 font-black text-emerald-700">
                         {totalQuantity} pcs
                       </td>
                     </tr>
@@ -1142,86 +1533,40 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 </table>
               </div>
 
-              {includeShorts && (
-                <div>
-                  <h4 className="font-black text-slate-800 uppercase tracking-wider text-[11px] mb-2 border-b border-slate-200 pb-1">
-                    Matching Shorts Specification ({shortsTotalQty} pcs)
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mb-2">
-                    <p>
-                      <span className="font-bold">Fabric:</span> {shortsFabric}
-                    </p>
-                    <p>
-                      <span className="font-bold">Pockets:</span>{' '}
-                      {shortsPocketType.replace('_', ' ')}
-                    </p>
-                    <p>
-                      <span className="font-bold">Inner Liner:</span>{' '}
-                      {shortsLiner ? 'With Mesh Liner' : 'No Liner'}
-                    </p>
-                  </div>
-                  <table className="w-full text-center border border-slate-300">
-                    <thead className="bg-slate-100 font-bold text-slate-700">
-                      <tr>
-                        <th className="p-1.5 border border-slate-300">Shorts S</th>
-                        <th className="p-1.5 border border-slate-300">Shorts M</th>
-                        <th className="p-1.5 border border-slate-300">Shorts L</th>
-                        <th className="p-1.5 border border-slate-300">Shorts XL</th>
-                        <th className="p-1.5 border border-slate-300">Shorts 2XL</th>
-                        <th className="p-1.5 border border-slate-300 bg-emerald-50 font-black">
-                          Total Shorts
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="font-bold">
-                        <td className="p-1.5 border border-slate-300">{shortsSizes.S || 0}</td>
-                        <td className="p-1.5 border border-slate-300">{shortsSizes.M || 0}</td>
-                        <td className="p-1.5 border border-slate-300">{shortsSizes.L || 0}</td>
-                        <td className="p-1.5 border border-slate-300">{shortsSizes.XL || 0}</td>
-                        <td className="p-1.5 border border-slate-300">
-                          {shortsSizes['2XL'] || 0}
-                        </td>
-                        <td className="p-1.5 border border-slate-300 bg-emerald-50 font-black text-emerald-700">
-                          {shortsTotalQty} pcs
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
               <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <p className="text-[11px] text-slate-600">
-                    Terms: 50% advance on design sign-off, remaining 50% upon delivery dispatch.
+                    Terms: 50% advance required upon design confirmation. Balance due prior to dispatch.
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-slate-500 font-semibold mr-4">
-                    Total: ${totals.totalAmount}
-                  </span>
-                  <span className="text-emerald-700 font-bold mr-4">
-                    Advance: ${totals.advanceAmount}
-                  </span>
-                  <span className="text-amber-800 font-black">Balance Due: ${totals.dueAmount}</span>
+                <div className="text-right space-y-0.5">
+                  <p className="text-slate-700">
+                    Total Order Value:{' '}
+                    <span className="font-black text-slate-900">
+                      ৳{totals.totalAmount.toLocaleString()} BDT
+                    </span>
+                  </p>
+                  <p className="text-emerald-700 font-bold">
+                    Advance Paid: ৳{totals.advanceAmount.toLocaleString()} BDT
+                  </p>
+                  <p className="text-amber-700 font-black text-sm">
+                    Balance Due: ৳{totals.dueAmount.toLocaleString()} BDT
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 pt-8 mt-6 border-t-2 border-slate-300">
-                <div className="text-center">
-                  <div className="h-14 border-b border-dashed border-slate-400"></div>
-                  <p className="font-bold text-slate-800 mt-1">Authorized Customer Signature</p>
+              <div className="grid grid-cols-2 gap-12 pt-8">
+                <div className="border-t-2 border-slate-400 pt-2 text-center">
+                  <p className="font-bold text-slate-800">Customer Approval Signature & Date</p>
                   <p className="text-[10px] text-slate-500">
-                    I confirm design, spelling, collar, shorts & sizes
+                    I confirm that artwork, collar type, sizes, and player names/numbers are accurate.
                   </p>
                 </div>
-                <div className="text-center">
-                  <div className="h-14 border-b border-dashed border-slate-400"></div>
-                  <p className="font-bold text-slate-800 mt-1">For Ridwear Sportswear Factory</p>
-                  <p className="text-[10px] text-slate-500">
-                    {selectedEmployee?.name || 'Production & Quality Control Lead'}
+                <div className="border-t-2 border-slate-400 pt-2 text-center">
+                  <p className="font-bold text-slate-800">
+                    Authorized Signatory ({selectedEmployee?.name || 'Marketing Lead'})
                   </p>
+                  <p className="text-[10px] text-slate-500">Ridwear Sportswear Mfg. • Banani HQ</p>
                 </div>
               </div>
             </div>

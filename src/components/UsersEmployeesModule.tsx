@@ -136,9 +136,7 @@ export const UsersEmployeesModule: React.FC<UsersEmployeesModuleProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black tracking-tight">
-                {language === 'bn'
-                  ? 'সিস্টেম ইউজার ও এমপ্লয়ি ডিরেক্টরি'
-                  : 'Dedicated Users, Roles & Employees Directory'}
+                {'Dedicated Users, Roles & Employees Directory'}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 font-bold text-[10px]">
                 RBAC Access &bull; Factory Rosters &bull; Linked Hardware

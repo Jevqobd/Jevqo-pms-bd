@@ -48,7 +48,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between text-blue-400">
             <span className="text-xs font-bold uppercase tracking-wider">
-              {language === 'bn' ? 'বনানী হেড অফিস' : 'Head Office'}
+              {'Head Office'}
             </span>
             <Building2 className="w-4 h-4" />
           </div>
@@ -56,10 +56,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-2xl font-black text-white font-mono">
               {headOfficeOrders.length}
             </span>
-            <span className="text-xs text-slate-400">{language === 'bn' ? 'অর্ডার' : 'orders'}</span>
+            <span className="text-xs text-slate-400">{'orders'}</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            {language === 'bn' ? 'সেলস, একাউন্টস ও মকআপ' : 'CRM, Payments & Mockups'}
+            {'CRM, Payments & Mockups'}
           </p>
         </div>
 
@@ -74,7 +74,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between text-emerald-400">
             <span className="text-xs font-bold uppercase tracking-wider">
-              {language === 'bn' ? 'টঙ্গী প্রিন্ট মিল' : 'Print Factory'}
+              {'Print Factory'}
             </span>
             <Printer className="w-4 h-4" />
           </div>
@@ -82,10 +82,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-2xl font-black text-white font-mono">
               {printFactoryOrders.length}
             </span>
-            <span className="text-xs text-slate-400">{language === 'bn' ? 'চলমান' : 'in production'}</span>
+            <span className="text-xs text-slate-400">{'in production'}</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            {language === 'bn' ? 'সাবলিমেশন পেপার ও ক্যালেন্ডার' : 'Paper Sublimation & Heat Press'}
+            {'Paper Sublimation & Heat Press'}
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between text-amber-400">
             <span className="text-xs font-bold uppercase tracking-wider">
-              {language === 'bn' ? 'কারখানা ভ্যান ট্রানজিট' : 'Inter-Factory Van'}
+              {'Inter-Factory Van'}
             </span>
             <Truck className="w-4 h-4" />
           </div>
@@ -108,10 +108,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-2xl font-black text-white font-mono">
               {dispatchedOrders.length}
             </span>
-            <span className="text-xs text-slate-400">{language === 'bn' ? 'রোলে ট্রাকে' : 'rolls on van'}</span>
+            <span className="text-xs text-slate-400">{'rolls on van'}</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            {language === 'bn' ? 'টঙ্গী থেকে মিরপুর চালান' : 'Printed Rolls en route to Sewing'}
+            {'Printed Rolls en route to Sewing'}
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         >
           <div className="flex items-center justify-between text-indigo-400">
             <span className="text-xs font-bold uppercase tracking-wider">
-              {language === 'bn' ? 'মিরপুর সুইং কারখানা' : 'Sewing Factory'}
+              {'Sewing Factory'}
             </span>
             <Scissors className="w-4 h-4" />
           </div>
@@ -134,10 +134,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-2xl font-black text-white font-mono">
               {sewingFactoryOrders.length}
             </span>
-            <span className="text-xs text-slate-400">{language === 'bn' ? 'লাইনে' : 'at lines'}</span>
+            <span className="text-xs text-slate-400">{'at lines'}</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            {language === 'bn' ? 'কাটিং, সেলাই, ফিনিশিং ও ডিসপ্যাচ' : 'Cutting, Assembly, Packing & Dispatch'}
+            {'Cutting, Assembly, Packing & Dispatch'}
           </p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             </div>
             <div>
               <div className="text-[11px] font-semibold text-slate-400 uppercase">
-                {language === 'bn' ? 'মোট পাইপলাইন বিক্রয়' : 'Total Pipeline Sales'}
+                {'Total Pipeline Sales'}
               </div>
               <div className="text-base font-black text-white font-mono">
                 ৳{totalSales.toLocaleString()}
@@ -160,7 +160,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="text-right text-xs">
             <span className="text-emerald-400 font-bold font-mono">৳{totalAdvances.toLocaleString()}</span>
-            <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'আদায়কৃত' : 'collected'}</span>
+            <span className="text-slate-400 block text-[10px]">{'collected'}</span>
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             </div>
             <div>
               <div className="text-[11px] font-semibold text-slate-400 uppercase">
-                {language === 'bn' ? 'বকেয়া পাওনা' : 'Due Before Delivery'}
+                {'Due Before Delivery'}
               </div>
               <div className="text-base font-black text-white font-mono">
                 ৳{totalDue.toLocaleString()}
@@ -182,7 +182,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             <span className="text-amber-400 font-bold font-mono">
               {Math.round((totalAdvances / (totalSales || 1)) * 100)}%
             </span>
-            <span className="text-slate-400 block text-[10px]">{language === 'bn' ? 'আদায় হার' : 'paid ratio'}</span>
+            <span className="text-slate-400 block text-[10px]">{'paid ratio'}</span>
           </div>
         </div>
 
@@ -199,17 +199,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
             </div>
             <div>
               <div className="text-[11px] font-semibold uppercase">
-                {language === 'bn' ? 'সক্রিয় রি-প্রিন্ট লুপ' : 'Active Re-print Loop'}
+                {'Active Re-print Loop'}
               </div>
               <div className="text-base font-black font-mono">
-                {openShortages.length} {language === 'bn' ? 'টি শর্টেজ টিকিট' : `Shortage Ticket${openShortages.length !== 1 ? 's' : ''}`}
+                {openShortages.length} {`Shortage Ticket${openShortages.length !== 1 ? 's' : ''}`}
               </div>
             </div>
           </div>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${
             openShortages.length > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}>
-            {openShortages.length > 0 ? (language === 'bn' ? 'জরুরি অ্যালার্ট' : 'Priority Alert') : (language === 'bn' ? 'ত্রুটি নেই' : 'No defects')}
+            {openShortages.length > 0 ? ('Priority Alert') : ('No defects')}
           </span>
         </div>
       </div>

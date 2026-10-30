@@ -22,8 +22,6 @@ export const RaiseShortageModal: React.FC<RaiseShortageModalProps> = ({
   preSelectedOrder,
   onRaiseTicket,
 }) => {
-  if (!isOpen) return null;
-
   const [selectedOrderId, setSelectedOrderId] = useState(
     preSelectedOrder ? preSelectedOrder.id : orders[0]?.id || ''
   );
@@ -33,6 +31,8 @@ export const RaiseShortageModal: React.FC<RaiseShortageModalProps> = ({
   const [playerDetails, setPlayerDetails] = useState('');
   const [reason, setReason] = useState('Fabric scorched during calendar heat press transfer');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
 
   const activeOrder = orders.find((o) => o.id === selectedOrderId) || preSelectedOrder;
 

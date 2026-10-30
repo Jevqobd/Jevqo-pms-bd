@@ -43,17 +43,17 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   onOpenRaiseShortage,
   onOpenQrBundleModal,
 }) => {
-  if (!order) return null;
-
   const [activeTab, setActiveTab] = useState<'workflow' | 'roster' | 'materials' | 'invoice'>('workflow');
-  const [mockupInput, setMockupInput] = useState(order.mockupUrl || '');
-  const [mockupNotesInput, setMockupNotesInput] = useState(order.mockupNotes || '');
-  const [printReadyInput, setPrintReadyInput] = useState(order.printReadyLink || '');
-  const [patternSpecInput, setPatternSpecInput] = useState(order.patternSpecSheet || '');
-  const [courierInput, setCourierInput] = useState(order.courierName || 'Pathao Express');
-  const [trackingInput, setTrackingInput] = useState(order.trackingNumber || '');
-  const [deliveryAddressInput, setDeliveryAddressInput] = useState(order.deliveryAddress || '');
+  const [mockupInput, setMockupInput] = useState(order?.mockupUrl || '');
+  const [mockupNotesInput, setMockupNotesInput] = useState(order?.mockupNotes || '');
+  const [printReadyInput, setPrintReadyInput] = useState(order?.printReadyLink || '');
+  const [patternSpecInput, setPatternSpecInput] = useState(order?.patternSpecSheet || '');
+  const [courierInput, setCourierInput] = useState(order?.courierName || 'Pathao Express');
+  const [trackingInput, setTrackingInput] = useState(order?.trackingNumber || '');
+  const [deliveryAddressInput, setDeliveryAddressInput] = useState(order?.deliveryAddress || '');
   const [isSaving, setIsSaving] = useState(false);
+
+  if (!order) return null;
 
   const materials = calculateFabricConsumption(order.sizeBreakdown || {}, order.fabricType);
 
@@ -301,15 +301,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-gray-50 dark:bg-gray-850 p-3 rounded-lg">
                   <div>
                     <span className="text-gray-400 block">Total Billed:</span>
-                    <span className="font-bold text-gray-900 dark:text-white">${order.totalAmount}</span>
+                    <span className="font-bold text-gray-900 dark:text-white">৳{order.totalAmount.toLocaleString()} BDT</span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Advance Received:</span>
-                    <span className="font-bold text-emerald-600">${order.advanceAmount}</span>
+                    <span className="font-bold text-emerald-600">৳{order.advanceAmount.toLocaleString()} BDT</span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Due Balance:</span>
-                    <span className="font-bold text-amber-600">${order.dueAmount}</span>
+                    <span className="font-bold text-amber-600">৳{order.dueAmount.toLocaleString()} BDT</span>
                   </div>
                   <div>
                     <span className="text-gray-400 block">Reference:</span>
@@ -853,8 +853,8 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                         Custom Sublimated Jersey ({order.fabricType}) - {order.teamOrClub}
                       </td>
                       <td className="py-2.5">{order.totalQuantity} pcs</td>
-                      <td className="py-2.5">${order.unitPrice || 15}</td>
-                      <td className="py-2.5 text-right font-bold">${order.totalAmount}</td>
+                      <td className="py-2.5">৳{order.unitPrice || 450}</td>
+                      <td className="py-2.5 text-right font-bold">৳{order.totalAmount.toLocaleString()} BDT</td>
                     </tr>
                   </tbody>
                 </table>
@@ -863,15 +863,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                 <div className="space-y-1.5 text-right pt-2 border-t border-gray-100 dark:border-gray-800">
                   <div className="flex justify-end gap-6 text-gray-600 dark:text-gray-300">
                     <span>Subtotal:</span>
-                    <span className="font-semibold">${order.totalAmount}</span>
+                    <span className="font-semibold">৳{order.totalAmount.toLocaleString()} BDT</span>
                   </div>
                   <div className="flex justify-end gap-6 text-emerald-600">
                     <span>Advance Payment Received:</span>
-                    <span className="font-bold">-${order.advanceAmount}</span>
+                    <span className="font-bold">-৳{order.advanceAmount.toLocaleString()} BDT</span>
                   </div>
                   <div className="flex justify-end gap-6 text-base font-black text-gray-900 dark:text-white pt-2 border-t">
                     <span>Balance Due Upon Delivery:</span>
-                    <span className="text-indigo-600">${order.dueAmount}</span>
+                    <span className="text-indigo-600">৳{order.dueAmount.toLocaleString()} BDT</span>
                   </div>
                 </div>
               </div>

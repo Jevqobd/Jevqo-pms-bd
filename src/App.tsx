@@ -34,6 +34,9 @@ import {
   PurchaseOrder,
   ProductSample,
   ColorSwatchRecipe,
+  ActionStatusTag,
+  SystemNotification,
+  DelegatedTask,
 } from './types/erp';
 import {
   INITIAL_SETTINGS,
@@ -43,6 +46,7 @@ import {
   INITIAL_PURCHASE_ORDERS,
   INITIAL_PRODUCT_SAMPLES,
   INITIAL_COLOR_SWATCHES,
+  INITIAL_EMPLOYEES,
 } from './services/seedData';
 import { ErpStorageService } from './services/erpStorageService';
 import { Sidebar, NavTab } from './components/Sidebar';
@@ -60,7 +64,8 @@ import { HrPayrollModule } from './components/HrPayrollModule';
 import { ManagersPortal } from './components/ManagersPortal';
 import { EmployeePortal } from './components/EmployeePortal';
 import { AiAssistantModal } from './components/AiAssistantModal';
-import { ThreeDStudio } from './components/ThreeDStudio';
+import { BulkImportModule } from './components/BulkImportModal';
+import { SoftwareAuthorizedInfoCard } from './components/SoftwareAuthorizedInfoCard';
 import { PrintFactoryView } from './components/PrintFactoryView';
 import { SewingFactoryView } from './components/SewingFactoryView';
 import { HeadOfficeView } from './components/HeadOfficeView';
@@ -78,14 +83,16 @@ import { DocumentsCenterModule } from './components/DocumentsCenterModule';
 import { GuidelinesModule } from './components/GuidelinesModule';
 import { VendorsSuppliersModule } from './components/VendorsSuppliersModule';
 import { ProductDevSampleModule } from './components/ProductDevSampleModule';
-import { canTransitionStage } from './utils/erpLogic';
+import { LoginScreen } from './components/LoginScreen';
 import {
-  Language,
-  getTranslation,
-  getRoleName,
-} from './utils/translations';
+  TaskDelegationPopupModal,
+  HeaderNotificationDropdown,
+} from './components/TaskDelegationPopupModal';
+import { canTransitionStage, canUserSwitchRole } from './utils/erpLogic';
+import { Language, getTranslation, getRoleName } from './utils/translations';
 import {
   playDelegationChime,
+  playInstantDelegationSound,
   playShortageAlertSound,
   playSuccessChime,
 } from './utils/soundEffects';
@@ -98,9 +105,14 @@ import {
   ArrowRight,
   Bot,
   Filter,
-  Languages,
   Settings,
   Users,
+  Database,
+  Lock,
+  ShieldCheck,
+  CheckCircle2,
+  LogOut,
+  BellRing,
 } from 'lucide-react';
 
 interface DelegationAlert {
@@ -112,20 +124,83 @@ interface DelegationAlert {
   targetEmployee?: string;
   message: string;
   type: 'delegation' | 'shortage' | 'payment';
+  statusTag: ActionStatusTag;
   timestamp: string;
 }
 
+const INITIAL_DELEGATED_TASKS: DelegatedTask[] = [
+  {
+    id: 'del-seed-1',
+    title: 'Sublimation Print & Rotary Calender Check — SW-2026-0891',
+    description:
+      'Verify 160 GSM Micro-Eyelet roll tension and complete 45m sublimation pass for Dhaka Gladiators.',
+    orderNumber: 'SW-2026-0891',
+    invoiceNumber: 'INV-2026-891',
+    assignedToEmployeeId: 'emp-5',
+    assignedToEmployeeName: 'Mizanur Rahman',
+    assignedToPosition: 'Print Factory Manager (Tongi)',
+    assignedToRole: 'print_factory',
+    delegatedByEmployeeName: 'Ridwanul Haque',
+    delegatedByPosition: 'Managing Director & Founder',
+    priority: 'high',
+    status: 'pending',
+    createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    dueTime: 'Today 4:00 PM',
+  },
+  {
+    id: 'del-seed-2',
+    title: 'Verify Advance Deposit & Issue VIP Portal Key — INV-2026-892',
+    description:
+      'Confirm City Bank wire transfer and release artwork package to Design Team 1.',
+    orderNumber: 'SW-2026-0892',
+    invoiceNumber: 'INV-2026-892',
+    assignedToEmployeeId: 'emp-10',
+    assignedToEmployeeName: 'Tanvir Mahmud',
+    assignedToPosition: 'Chief Accountant',
+    assignedToRole: 'accountant',
+    delegatedByEmployeeName: 'Ridwanul Haque',
+    delegatedByPosition: 'Managing Director & Founder',
+    priority: 'urgent',
+    status: 'pending',
+    createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    dueTime: 'Today 3:00 PM',
+  },
+];
+
+const INITIAL_NOTIFICATIONS: SystemNotification[] = [
+  {
+    id: 'notif-seed-1',
+    title: 'Order Advance Payment Approved',
+    message: 'Advance payment for SW-2026-0891 verified and unlocked for Design Studio.',
+    statusTag: 'APPROVED',
+    actorName: 'Ridwanul Haque',
+    actorPosition: 'Managing Director & Founder',
+    relatedOrderOrInvoice: 'SW-2026-0891',
+    timestamp: '10:15 AM',
+    read: false,
+  },
+  {
+    id: 'notif-seed-2',
+    title: 'Sublimation Print Batch Completed',
+    message: 'Tongi Print Mill completed 68m transfer paper pass for SW-2026-0889.',
+    statusTag: 'DONE',
+    actorName: 'Mizanur Rahman',
+    actorPosition: 'Print Factory Manager (Tongi)',
+    relatedOrderOrInvoice: 'SW-2026-0889',
+    timestamp: '11:05 AM',
+    read: false,
+  },
+];
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Mandatory Login State: User MUST log in before accessing any part of the system
+  const [loggedInEmployee, setLoggedInEmployee] = useState<Employee | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole>('owner');
   const [selectedLocation, setSelectedLocation] = useState<FactoryLocation | 'all'>('all');
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard_tasks');
-  const [language, setLanguage] = useState<Language>('en');
+  const language: Language = 'en';
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === 'en' ? 'bn' : 'en'));
-  };
 
   // Real-time collections
   const [orders, setOrders] = useState<Order[]>([]);
@@ -138,18 +213,33 @@ export default function App() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [teamMessages, setTeamMessages] = useState<TeamMessage[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings>(INITIAL_SETTINGS);
   const [companyAssets, setCompanyAssets] = useState<CompanyAsset[]>(INITIAL_COMPANY_ASSETS);
-  const [companyDocuments, setCompanyDocuments] = useState<CompanyDocument[]>(INITIAL_COMPANY_DOCUMENTS);
+  const [companyDocuments, setCompanyDocuments] = useState<CompanyDocument[]>(
+    INITIAL_COMPANY_DOCUMENTS
+  );
   const [marketingFaqs, setMarketingFaqs] = useState<MarketingFaqItem[]>(INITIAL_MARKETING_FAQS);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(INITIAL_PURCHASE_ORDERS);
   const [productSamples, setProductSamples] = useState<ProductSample[]>(INITIAL_PRODUCT_SAMPLES);
   const [colorSwatches, setColorSwatches] = useState<ColorSwatchRecipe[]>(INITIAL_COLOR_SWATCHES);
+
+  // Notifications & Instant Task Delegation State
+  const [systemNotifications, setSystemNotifications] =
+    useState<SystemNotification[]>(INITIAL_NOTIFICATIONS);
+  const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+  const [delegatedTasks, setDelegatedTasks] = useState<DelegatedTask[]>(INITIAL_DELEGATED_TASKS);
+  const [activeDelegatedPopupTask, setActiveDelegatedPopupTask] = useState<DelegatedTask | null>(
+    null
+  );
+
+  // Private Chat Pre-selection state
+  const [chatPreselectedInvoice, setChatPreselectedInvoice] = useState<string>('');
+  const [chatPreselectedRecipientId, setChatPreselectedRecipientId] = useState<string>('');
 
   // Modals & Panels
   const [isRoleSwitcherOpen, setIsRoleSwitcherOpen] = useState(false);
@@ -162,22 +252,72 @@ export default function App() {
   const [orderForShortage, setOrderForShortage] = useState<Order | null>(null);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-  const [selectedEmployeeForProfile, setSelectedEmployeeForProfile] = useState<Employee | null>(null);
+  const [selectedEmployeeForProfile, setSelectedEmployeeForProfile] = useState<Employee | null>(
+    null
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isB2bPortalOpen, setIsB2bPortalOpen] = useState(false);
 
   // Status & Audio Delegation Alerts
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastBanner, setToastBanner] = useState<{
+    tag: ActionStatusTag;
+    message: string;
+  } | null>(null);
   const [activeAlerts, setActiveAlerts] = useState<DelegationAlert[]>([]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+  // Check if the logged-in user's assigned role permits switching active roles (ONLY Owner or Manager)
+  const userAllowedToSwitchRole = loggedInEmployee
+    ? canUserSwitchRole(loggedInEmployee.role)
+    : false;
+
+  const pushActionNotification = (
+    statusTag: ActionStatusTag,
+    title: string,
+    message: string,
+    relatedOrderOrInvoice?: string,
+    targetEmployeeName?: string
+  ) => {
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newNotif: SystemNotification = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      message,
+      statusTag,
+      actorName: loggedInEmployee?.name || 'System Operator',
+      actorPosition: loggedInEmployee?.designation || ROLE_CONFIGS[currentRole]?.shortLabel,
+      targetEmployeeName,
+      relatedOrderOrInvoice,
+      timestamp: nowTime,
+      read: false,
+    };
+
+    setSystemNotifications((prev) => [newNotif, ...prev].slice(0, 40));
+    setToastBanner({ tag: statusTag, message: `${title} — ${message}` });
+    playSuccessChime();
+    setTimeout(() => {
+      setToastBanner((curr) => (curr?.message === `${title} — ${message}` ? null : curr));
+    }, 4500);
   };
 
-  const pushDelegationAlert = (alert: Omit<DelegationAlert, 'id' | 'timestamp'>) => {
+  const showToast = (msg: string, tag: ActionStatusTag = 'DONE') => {
+    pushActionNotification(tag, `${tag}: System Action`, msg);
+  };
+
+  const pushDelegationAlert = (
+    alert: Omit<DelegationAlert, 'id' | 'timestamp' | 'statusTag'> & {
+      statusTag?: ActionStatusTag;
+    }
+  ) => {
+    const tag: ActionStatusTag =
+      alert.statusTag ||
+      (alert.type === 'shortage'
+        ? 'ALERT'
+        : alert.type === 'payment'
+        ? 'APPROVED'
+        : 'DELEGATED');
     const newAlert: DelegationAlert = {
       ...alert,
+      statusTag: tag,
       id: `alert-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -196,15 +336,92 @@ export default function App() {
     }, 7000);
   };
 
+  // Instant Task Delegation Handler (Triggers Modal Popup + Urgent Audio Alert)
+  const handleDelegateTask = (taskInput: Omit<DelegatedTask, 'id' | 'createdAt' | 'status'>) => {
+    const newTask: DelegatedTask = {
+      ...taskInput,
+      id: `del-${Date.now()}`,
+      status: 'pending',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setDelegatedTasks((prev) => [newTask, ...prev]);
+    setActiveDelegatedPopupTask(newTask);
+    playInstantDelegationSound();
+
+    pushActionNotification(
+      'DELEGATED',
+      `Task Delegated to ${newTask.assignedToEmployeeName}`,
+      `${newTask.title} (${newTask.priority.toUpperCase()} Priority)`,
+      newTask.orderNumber || newTask.invoiceNumber,
+      newTask.assignedToEmployeeName
+    );
+  };
+
+  const handleAcceptDelegatedTask = (taskId: string) => {
+    const found = delegatedTasks.find((t) => t.id === taskId);
+    setDelegatedTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: 'accepted' } : t))
+    );
+    if (activeDelegatedPopupTask?.id === taskId) {
+      setActiveDelegatedPopupTask(null);
+    }
+    if (found) {
+      pushActionNotification(
+        'APPROVED',
+        `Delegated Task Accepted by ${found.assignedToEmployeeName}`,
+        `Accepted: "${found.title}"`,
+        found.orderNumber || found.invoiceNumber,
+        found.assignedToEmployeeName
+      );
+    }
+  };
+
+  const handleCompleteDelegatedTask = (taskId: string) => {
+    const found = delegatedTasks.find((t) => t.id === taskId);
+    setDelegatedTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t))
+    );
+    if (activeDelegatedPopupTask?.id === taskId) {
+      setActiveDelegatedPopupTask(null);
+    }
+    if (found) {
+      pushActionNotification(
+        'DONE',
+        `Delegated Task Completed by ${found.assignedToEmployeeName}`,
+        `Completed: "${found.title}"`,
+        found.orderNumber || found.invoiceNumber,
+        found.assignedToEmployeeName
+      );
+    }
+  };
+
+  const handleOpenPrivateInvoiceChat = (invoiceNumber: string, targetEmployeeId?: string) => {
+    setChatPreselectedInvoice(invoiceNumber);
+    if (targetEmployeeId) {
+      setChatPreselectedRecipientId(targetEmployeeId);
+    }
+    setIsChatOpen(true);
+  };
+
+  const handleOpenRoleSwitcherGuarded = () => {
+    if (!userAllowedToSwitchRole) {
+      pushActionNotification(
+        'ALERT',
+        'Role Switching Restricted',
+        `Only Owner or Manager can switch active roles. Your profile (${loggedInEmployee?.name}) is locked to ${loggedInEmployee?.designation}.`
+      );
+      return;
+    }
+    setIsRoleSwitcherOpen(true);
+  };
+
   // 1. Initial connection test & auth listener
   useEffect(() => {
     testFirestoreConnection();
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      if (user?.email === 'ridwearbd@gmail.com') {
-        setCurrentRole('owner');
-      }
     });
 
     return () => unsubscribeAuth();
@@ -222,7 +439,9 @@ export default function App() {
     const unsubVendors = ErpStorageService.subscribeVendors(setVendors);
     const unsubLedger = ErpStorageService.subscribeLedger(setLedgerEntries);
     const unsubPayments = ErpStorageService.subscribePayments(setPayments);
-    const unsubEmployees = ErpStorageService.subscribeEmployees(setEmployees);
+    const unsubEmployees = ErpStorageService.subscribeEmployees((emps) => {
+      if (emps && emps.length > 0) setEmployees(emps);
+    });
     const unsubAttendance = ErpStorageService.subscribeAttendance(setAttendance);
     const unsubPayslips = ErpStorageService.subscribePayslips(setPayslips);
     const unsubMessages = ErpStorageService.subscribeMessages(setTeamMessages);
@@ -269,10 +488,14 @@ export default function App() {
     }
   }, [orders]);
 
-  // Stage transition action with role validation & audio delegation alert
+  // Stage transition action with role validation & instant task delegation popup + sound
   const handleAdvanceStage = async (order: Order, nextStage: OrderStage) => {
     if (!canTransitionStage(order.stage, nextStage, currentRole)) {
-      showToast(`Role "${currentRole}" cannot transition from ${order.stage} to ${nextStage}.`);
+      pushActionNotification(
+        'ALERT',
+        'Stage Transition Restricted',
+        `Role "${currentRole}" cannot transition from ${order.stage} to ${nextStage}.`
+      );
       return;
     }
 
@@ -280,179 +503,231 @@ export default function App() {
       await ErpStorageService.updateOrder(order.id, { stage: nextStage });
 
       let targetDept = 'Next Production Stage';
-      let targetEmp = 'Floor Operator';
+      let targetEmpObj = employees.find((e) => e.role === 'print_factory') || employees[0];
 
       if (nextStage === 'payment_verified') {
         targetDept = 'Design Studio (Banani)';
-        targetEmp = 'Farhana Sultana (Mockup Lead)';
+        targetEmpObj = employees.find((e) => e.role === 'design_mockup') || targetEmpObj;
       } else if (nextStage === 'mockup_approved') {
         targetDept = 'Pre-Press Nesting (Banani)';
-        targetEmp = 'Nusrat Jahan (Pattern Spec Lead)';
+        targetEmpObj = employees.find((e) => e.role === 'design_pattern') || targetEmpObj;
       } else if (nextStage === 'pattern_spec_ready') {
         targetDept = 'Print Factory (Tongi Floor)';
-        targetEmp = 'Kabir Hossain (Sublimation Lead)';
+        targetEmpObj = employees.find((e) => e.role === 'print_factory') || targetEmpObj;
       } else if (nextStage === 'paper_printed') {
         targetDept = 'Tongi Heat Press Line';
-        targetEmp = 'Heat Press Master';
+        targetEmpObj = employees.find((e) => e.location === 'print_factory') || targetEmpObj;
       } else if (nextStage === 'fabric_dispatched') {
         targetDept = 'Sewing Factory (Mirpur Line)';
-        targetEmp = 'Rony Mia (Assembly Master)';
+        targetEmpObj = employees.find((e) => e.role === 'sewing_factory') || targetEmpObj;
       } else if (nextStage === 'fabric_received') {
         targetDept = 'Mirpur Cutting & Stitching';
-        targetEmp = 'Line 1 & 2 Operators';
+        targetEmpObj = employees.find((e) => e.location === 'sewing_factory') || targetEmpObj;
       } else if (nextStage === 'shipped') {
         targetDept = 'Marketing & Dispatch (Banani)';
-        targetEmp = 'Client Delivery Desk';
+        targetEmpObj = employees.find((e) => e.role === 'marketing') || targetEmpObj;
       }
 
-      pushDelegationAlert({
+      handleDelegateTask({
+        title: `Stage Hand-off: ${nextStage.replace(/_/g, ' ').toUpperCase()} (${order.orderNumber})`,
+        description: `Order #${order.orderNumber} (${order.teamOrClub}, ${order.totalQuantity} pcs) advanced to ${targetDept}. Execute department checklist immediately.`,
         orderNumber: order.orderNumber,
-        orderId: order.id,
-        title: `Task Delegated: ${nextStage.replace(/_/g, ' ').toUpperCase()}`,
-        targetDepartment: targetDept,
-        targetEmployee: targetEmp,
-        message: `Order #${order.orderNumber} handed off to ${targetDept} (${targetEmp})`,
-        type: 'delegation',
+        assignedToEmployeeId: targetEmpObj.id,
+        assignedToEmployeeName: targetEmpObj.name,
+        assignedToPosition: targetEmpObj.designation,
+        assignedToRole: targetEmpObj.role,
+        delegatedByEmployeeName: loggedInEmployee?.name || 'Operations Lead',
+        delegatedByPosition: loggedInEmployee?.designation || 'Department Lead',
+        priority: nextStage === 'payment_verified' || nextStage === 'pattern_spec_ready' ? 'urgent' : 'high',
+        dueTime: 'Within 3 Hours',
       });
-
-      showToast(`Order ${order.orderNumber} advanced to ${nextStage.replace(/_/g, ' ')}`);
     } catch (err) {
       console.error(err);
-      showToast('Error updating order stage');
+      pushActionNotification('ALERT', 'Update Failed', 'Error updating order stage');
     }
   };
 
   const handleUpdateOrder = async (orderId: string, partial: Partial<Order>) => {
     await ErpStorageService.updateOrder(orderId, partial);
-    showToast('Job Card updated successfully');
+    const statusTag: ActionStatusTag =
+      partial.paymentStatus === 'verified' || partial.stage === 'mockup_approved'
+        ? 'APPROVED'
+        : 'DONE';
+    pushActionNotification(
+      statusTag,
+      `Job Card Updated (${statusTag})`,
+      `Order specification and production progress saved.`
+    );
   };
 
   const handleCreateOrder = async (newOrder: Order) => {
     await ErpStorageService.createOrder(newOrder);
-    showToast(`Job Card ${newOrder.orderNumber} created! Awaiting payment verification.`);
+    pushActionNotification(
+      'DONE',
+      `Job Card Created: ${newOrder.orderNumber}`,
+      `Created order for ${newOrder.clientName} (${newOrder.totalQuantity} pcs, ৳${newOrder.totalAmount.toLocaleString()} BDT).`,
+      newOrder.orderNumber
+    );
     pushDelegationAlert({
       orderNumber: newOrder.orderNumber,
       orderId: newOrder.id,
-      title: 'New Order Entry Created',
+      title: 'DONE: New Job Card Created',
       targetDepartment: 'Finance & Accounts',
-      targetEmployee: 'Rafiqul Islam',
-      message: `Awaiting initial deposit verification for ${newOrder.clientName}`,
+      targetEmployee: newOrder.assignedToEmployeeName || 'Tanvir Mahmud',
+      message: `Awaiting deposit verification for ${newOrder.clientName} (৳${newOrder.advanceAmount.toLocaleString()} BDT)`,
       type: 'payment',
+      statusTag: 'DONE',
     });
   };
 
   const handleRaiseShortage = async (ticket: ShortageTicket) => {
     await ErpStorageService.raiseShortageTicket(ticket);
-    pushDelegationAlert({
+    const printLead = employees.find((e) => e.role === 'print_factory') || employees[0];
+    handleDelegateTask({
+      title: `🚨 PRIORITY SHORTAGE REPRINT: ${ticket.orderNumber}`,
+      description: `${ticket.quantity} pcs (${ticket.size}) ruined in ${ticket.partDamaged} (${ticket.reason}). Isolate pattern & reprint immediately!`,
       orderNumber: ticket.orderNumber,
-      orderId: ticket.orderId,
-      title: '🚨 PRIORITY SHORTAGE RAISED',
-      targetDepartment: 'Design 2 & Tongi Print Floor',
-      targetEmployee: 'Nusrat Jahan & Kabir Hossain',
-      message: `${ticket.quantity} pcs (${ticket.size}) ruined in ${ticket.partDamaged} (${ticket.reason}). Urgent reprint initiated!`,
-      type: 'shortage',
+      assignedToEmployeeId: printLead.id,
+      assignedToEmployeeName: printLead.name,
+      assignedToPosition: printLead.designation,
+      assignedToRole: printLead.role,
+      delegatedByEmployeeName: loggedInEmployee?.name || ticket.createdBy,
+      delegatedByPosition: loggedInEmployee?.designation || 'Sewing Line Lead',
+      priority: 'urgent',
+      dueTime: 'Immediate Express Reprint',
     });
-    showToast(`Priority Shortage Ticket ${ticket.orderNumber} raised! Re-print loop alerted.`);
   };
 
-  const handleUpdateShortageTicket = async (ticketId: string, partial: Partial<ShortageTicket>) => {
+  const handleUpdateShortageTicket = async (
+    ticketId: string,
+    partial: Partial<ShortageTicket>
+  ) => {
     await ErpStorageService.updateShortageTicket(ticketId, partial);
-    showToast('Shortage ticket updated');
+    pushActionNotification(
+      partial.status === 'resolved' ? 'DONE' : 'APPROVED',
+      `Shortage Ticket Updated`,
+      `Ticket status set to ${(partial.status || 'updated').replace(/_/g, ' ').toUpperCase()}.`
+    );
   };
 
   // Inventory & Assets Handlers
   const handleUpdateStock = async (itemId: string, newStock: number) => {
     await ErpStorageService.updateInventoryStock(itemId, newStock);
-    showToast('Inventory level synchronized');
+    pushActionNotification('DONE', 'Inventory Stock Updated', 'Stock level synchronized.');
   };
 
   const handleCreateInventoryItem = async (item: InventoryItem) => {
     await ErpStorageService.createInventoryItem(item);
-    showToast(`Raw item "${item.name}" (${item.unit}) added to inventory.`);
-  };
-
-  const handleUpdateInventoryItem = async (id: string, partial: Partial<InventoryItem>) => {
-    await ErpStorageService.updateInventoryItem(id, partial);
-    showToast('Inventory item specification updated.');
+    pushActionNotification(
+      'DONE',
+      'Raw Material Added',
+      `Added "${item.name}" (${item.unit}) to inventory.`
+    );
   };
 
   const handleDeleteInventoryItem = async (id: string) => {
     await ErpStorageService.deleteInventoryItem(id);
-    showToast('Inventory item removed.');
+    pushActionNotification('DONE', 'Inventory Item Removed', 'Material removed from stock list.');
   };
 
   const handleCreateAsset = async (asset: CompanyAsset) => {
     await ErpStorageService.createAsset(asset);
-    showToast(`Company asset "${asset.name}" (${asset.assetCode}) registered.`);
+    pushActionNotification(
+      'DONE',
+      'Company Asset Registered',
+      `Asset "${asset.name}" (${asset.assetCode}) added.`
+    );
   };
 
   const handleUpdateAsset = async (id: string, partial: Partial<CompanyAsset>) => {
     await ErpStorageService.updateAsset(id, partial);
-    showToast('Company asset assignment updated.');
+    pushActionNotification(
+      'APPROVED',
+      'Asset Assignment Updated',
+      'Equipment custodian assignment updated.'
+    );
   };
 
   // Customers & Marketing Playbook Handlers
   const handleCreateCustomer = async (customer: Customer) => {
     await ErpStorageService.createCustomer(customer);
-    showToast(`Customer "${customer.name}" added to CRM with Portal Pass.`);
+    pushActionNotification(
+      'DONE',
+      'CRM Customer Registered',
+      `Customer "${customer.name}" added with VIP Portal Pass.`
+    );
   };
 
   const handleUpdateCustomer = async (id: string, partial: Partial<Customer>) => {
     await ErpStorageService.updateCustomer(id, partial);
-    showToast('Customer loyalty & privilege profile updated.');
+    pushActionNotification(
+      'APPROVED',
+      'Customer Privilege Approved',
+      'Updated customer loyalty & discount tier.'
+    );
   };
 
   const handleCreateFaq = async (faq: MarketingFaqItem) => {
     await ErpStorageService.createFaq(faq);
-    showToast('New Marketing Q&A reply script saved.');
+    pushActionNotification('DONE', 'Marketing Script Saved', 'New Q&A reply script added.');
   };
 
   // Company Documents Handlers
   const handleCreateDocument = async (docItem: CompanyDocument) => {
     await ErpStorageService.createDocument(docItem);
-    showToast(`Official document ${docItem.docNumber} issued.`);
+    pushActionNotification(
+      'APPROVED',
+      `Official Document Issued: ${docItem.docNumber}`,
+      `${docItem.title} signed and archived.`
+    );
   };
 
   const handleUpdateDocument = async (id: string, partial: Partial<CompanyDocument>) => {
     await ErpStorageService.updateDocument(id, partial);
-    showToast('Document updated.');
+    pushActionNotification('DONE', 'Document Updated', 'Official company document updated.');
   };
 
-  // Cross-Component Smart Sync Handler
   const handleAutoSyncInventoryFromOrders = async () => {
     const activeOrderCount = orders.length;
-    showToast(`Synchronized BOM requirements across ${activeOrderCount} active Job Cards & Courier Gate Passes.`);
+    pushActionNotification(
+      'DONE',
+      'Cross-Module BOM Sync Complete',
+      `Synchronized BOM requirements across ${activeOrderCount} active Job Cards.`
+    );
   };
 
   // Vendor, PO & GRN Handlers
   const handleCreateVendor = async (vendor: Vendor) => {
     await ErpStorageService.createVendor(vendor);
-    showToast(`Supplier "${vendor.name}" added to directory.`);
+    pushActionNotification(
+      'DONE',
+      'Supplier Added',
+      `Supplier "${vendor.name}" registered in directory.`
+    );
   };
 
   const handleUpdateVendor = async (id: string, updates: Partial<Vendor>) => {
     await ErpStorageService.updateVendor(id, updates);
-    showToast('Supplier scorecard updated.');
+    pushActionNotification('APPROVED', 'Supplier Scorecard Updated', 'Vendor rating saved.');
   };
 
   const handleCreatePurchaseOrder = async (po: PurchaseOrder) => {
     await ErpStorageService.createPurchaseOrder(po);
-    pushDelegationAlert({
-      orderNumber: po.poNumber,
-      orderId: po.id,
-      title: `Purchase Order ${po.poNumber} Issued`,
-      targetDepartment: po.deliveryLocation === 'print_factory' ? 'Tongi Print Mill' : 'Mirpur Sewing Factory',
-      targetEmployee: po.vendorName,
-      message: `Ordered ${po.items.map((i) => `${i.quantity} ${i.unit} ${i.itemName}`).join(', ')} ($${po.totalAmount}).`,
-      type: 'delegation',
-    });
-    showToast(`Purchase Order ${po.poNumber} issued to ${po.vendorName}.`);
+    pushActionNotification(
+      'APPROVED',
+      `Purchase Order Approved: ${po.poNumber}`,
+      `Issued PO to ${po.vendorName} for ৳${po.totalAmount.toLocaleString()} BDT.`,
+      po.poNumber
+    );
   };
 
   const handleReceiveGrn = async (poId: string) => {
     await ErpStorageService.receivePurchaseOrderGrn(poId);
-    playSuccessChime();
-    showToast('GRN verified! Raw material inventory stock & Vendor Payable Ledger updated automatically.');
+    pushActionNotification(
+      'VERIFIED',
+      'GRN Verified & Stock Added',
+      'Raw material stock and vendor payable ledger updated automatically.'
+    );
   };
 
   const handleRecordVendorPayment = async (vendorId: string, amount: number, ref: string) => {
@@ -470,25 +745,41 @@ export default function App() {
       transactionRef: ref,
       invoiceOrBillRef: ref,
       notes: `Vendor payable settlement via ${ref}`,
-      verifiedBy: 'Finance & Procurement Desk',
+      verifiedBy: loggedInEmployee?.name || 'Finance Desk',
     });
-    showToast(`Paid $${amount} to ${vendor.name} (Ref: ${ref}).`);
+    pushActionNotification(
+      'APPROVED',
+      `Vendor Payment Disbursed`,
+      `Paid ৳${amount.toLocaleString()} BDT to ${vendor.name} (Ref: ${ref}).`
+    );
   };
 
   // NPD & Sample Management Handlers
   const handleCreateProductSample = async (sample: ProductSample) => {
     await ErpStorageService.createProductSample(sample);
-    showToast(`Tech Pack & Sample ${sample.techPackCode} created!`);
+    pushActionNotification(
+      'DONE',
+      `Tech Pack Created: ${sample.techPackCode}`,
+      `New sample "${sample.styleName}" registered.`
+    );
   };
 
   const handleUpdateProductSample = async (id: string, updates: Partial<ProductSample>) => {
     await ErpStorageService.updateProductSample(id, updates);
-    showToast('Sample stage & Tech Pack updated.');
+    pushActionNotification(
+      'APPROVED',
+      'Sample Stage Approved',
+      'Tech Pack & sample milestone updated.'
+    );
   };
 
   const handleCreateColorSwatch = async (swatch: ColorSwatchRecipe) => {
     await ErpStorageService.createColorSwatch(swatch);
-    showToast(`Sublimation color recipe "${swatch.colorName}" (${swatch.pantoneCode}) saved.`);
+    pushActionNotification(
+      'DONE',
+      'Color Recipe Saved',
+      `Sublimation swatch "${swatch.colorName}" (${swatch.pantoneCode}) saved.`
+    );
   };
 
   const handleConvertSampleToOrder = async (sample: ProductSample, bulkQty: number) => {
@@ -527,50 +818,42 @@ export default function App() {
     await ErpStorageService.updateProductSample(sample.id, {
       convertedOrderId: newOrder.id,
     });
-    pushDelegationAlert({
-      orderNumber: newOrder.orderNumber,
-      orderId: newOrder.id,
-      title: `Golden Sample Converted to Bulk Job Card`,
-      targetDepartment: 'Tongi Sublimation Print Mill',
-      targetEmployee: sample.patternMasterName,
-      message: `${sample.techPackCode} (${bulkQty} pcs) launched directly into pattern_spec_ready queue!`,
-      type: 'delegation',
-    });
-    showToast(`Launched Bulk Job Card ${newOrder.orderNumber} (${bulkQty} pcs) from ${sample.techPackCode}!`);
+    pushActionNotification(
+      'APPROVED',
+      `Sample Converted to Bulk Job Card`,
+      `Launched ${newOrder.orderNumber} (${bulkQty} pcs) from ${sample.techPackCode}.`,
+      newOrder.orderNumber
+    );
     setActiveTab('orders');
-  };
-
-  const handleApplyMockup = async (orderId: string, mockupUrl: string) => {
-    await ErpStorageService.updateOrder(orderId, {
-      mockupUrl,
-      stage: 'mockup_in_progress',
-    });
-    showToast('3D design synced to Job Card');
   };
 
   // Accounting Handlers
   const handleRecordPayment = async (payment: PaymentRecord) => {
     await ErpStorageService.recordPayment(payment);
-    pushDelegationAlert({
-      orderNumber: payment.invoiceOrBillRef || 'PAYMENT',
-      orderId: payment.partyId,
-      title: 'Payment Recorded & Logged',
-      targetDepartment: 'Finance & General Manager',
-      targetEmployee: 'Executive Approvals Desk',
-      message: `Received $${payment.amount} from ${payment.partyName} via ${payment.method}`,
-      type: 'payment',
-    });
-    showToast(`Payment of $${payment.amount} logged.`);
+    pushActionNotification(
+      'APPROVED',
+      `Payment Approved & Logged`,
+      `Recorded ৳${payment.amount.toLocaleString()} BDT for ${payment.partyName} via ${payment.method}.`,
+      payment.invoiceOrBillRef
+    );
   };
 
   const handleAddExpense = async (expense: Expense) => {
     await ErpStorageService.addExpense(expense);
-    showToast(`Operating expense "$${expense.amount}" recorded.`);
+    pushActionNotification(
+      'DONE',
+      'Operating Expense Logged',
+      `Recorded ৳${expense.amount.toLocaleString()} BDT for "${expense.title}".`
+    );
   };
 
   const handleCreateEstimate = async (estimate: Estimate) => {
     await ErpStorageService.createEstimate(estimate);
-    showToast(`Quotation ${estimate.estimateNumber} generated!`);
+    pushActionNotification(
+      'DONE',
+      `Quotation Generated: ${estimate.estimateNumber}`,
+      `Estimate for ${estimate.customerName} (৳${estimate.totalAmount.toLocaleString()} BDT) created.`
+    );
   };
 
   const handleConvertEstimate = async (estimate: Estimate) => {
@@ -583,7 +866,7 @@ export default function App() {
       fabricType: 'Micro-Eyelet 160 GSM',
       gsm: 160,
       totalQuantity: estimate.items.reduce((s, i) => s + i.quantity, 0),
-      unitPrice: estimate.items[0]?.unitPrice || 18,
+      unitPrice: estimate.items[0]?.unitPrice || 450,
       totalAmount: estimate.totalAmount,
       advanceAmount: 0,
       dueAmount: estimate.totalAmount,
@@ -593,7 +876,7 @@ export default function App() {
       currentLocation: 'head_office',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: 'Marketing Desk',
+      createdBy: loggedInEmployee?.name || 'Marketing Desk',
     };
 
     await ErpStorageService.createOrder(newOrder);
@@ -601,28 +884,49 @@ export default function App() {
       status: 'converted',
       convertedOrderId: newOrder.id,
     });
-    showToast(`Quotation converted to Job Card ${newOrder.orderNumber}!`);
+    pushActionNotification(
+      'APPROVED',
+      `Estimate Approved & Converted`,
+      `Converted ${estimate.estimateNumber} to Job Card ${newOrder.orderNumber}!`,
+      newOrder.orderNumber
+    );
   };
 
   const handleUpdateInvoice = async (id: string, partial: Partial<Invoice>) => {
     await ErpStorageService.updateInvoice(id, partial);
-    showToast('Invoice updated successfully');
+    pushActionNotification(
+      partial.status === 'paid' ? 'APPROVED' : 'DONE',
+      `Invoice Updated`,
+      `Invoice record updated in financial ledger.`
+    );
   };
 
   // HR Handlers
   const handlePunchAttendance = async (record: AttendanceRecord) => {
     await ErpStorageService.punchAttendance(record);
-    showToast(`Attendance recorded: ${record.status.toUpperCase()} (${record.employeeName})`);
+    pushActionNotification(
+      'DONE',
+      `Attendance Logged: ${record.employeeName}`,
+      `Shift status: ${record.status.toUpperCase()} at ${record.checkInTime}.`
+    );
   };
 
   const handleDisburseSalary = async (payslipId: string, paymentMethod: string = 'Bank Wire') => {
     await ErpStorageService.disburseSalary(payslipId, paymentMethod);
-    showToast('Salary payment disbursed and logged to ledger.');
+    pushActionNotification(
+      'APPROVED',
+      'Salary Disbursed & Approved',
+      `Payroll disbursed via ${paymentMethod} and posted to general ledger.`
+    );
   };
 
   const handleCreateEmployee = async (emp: Employee) => {
     await ErpStorageService.createEmployee(emp);
-    showToast(`New staff member ${emp.name} added to directory.`);
+    pushActionNotification(
+      'DONE',
+      `Staff Profile Created: ${emp.name}`,
+      `${emp.designation} added to ${emp.location.replace('_', ' ')}.`
+    );
   };
 
   const handleUpdateEmployee = async (employeeId: string, partial: Partial<Employee>) => {
@@ -630,39 +934,86 @@ export default function App() {
     if (selectedEmployeeForProfile && selectedEmployeeForProfile.id === employeeId) {
       setSelectedEmployeeForProfile({ ...selectedEmployeeForProfile, ...partial });
     }
-    showToast('Employee profile, factory assignment & contract updated.');
+    pushActionNotification(
+      'APPROVED',
+      'Employee Profile Updated',
+      'Updated staff designation, factory assignment, and contract details.'
+    );
   };
 
-  const handleUpdatePermissions = async (employeeId: string, permissions: EmployeePermissions) => {
+  const handleUpdatePermissions = async (
+    employeeId: string,
+    permissions: EmployeePermissions
+  ) => {
     await ErpStorageService.updateEmployee(employeeId, { permissions });
-    showToast('Employee access permissions saved.');
+    pushActionNotification(
+      'APPROVED',
+      'Access Permissions Updated',
+      'Role-based module permissions saved.'
+    );
   };
 
   const handleCreateBankAccount = async (acc: BankAccount) => {
     await ErpStorageService.addBankAccount(acc);
-    showToast(`Bank account "${acc.bankName}" linked.`);
+    pushActionNotification(
+      'DONE',
+      `Bank Account Linked: ${acc.bankName}`,
+      `Corporate account ${acc.accountNumber} added to treasury.`
+    );
   };
 
   const handleSaveSettings = async (newSettings: CompanySettings) => {
     await ErpStorageService.updateSettings(newSettings);
-    showToast('Enterprise settings, module names & courier integrations updated.');
+    pushActionNotification(
+      'APPROVED',
+      'System Settings Saved',
+      'Updated enterprise configuration, module names, and courier integrations.'
+    );
   };
 
-  const handleAuthAction = async () => {
+  const handleLoginEmployee = (emp: Employee) => {
+    setLoggedInEmployee(emp);
+    setCurrentRole(emp.role);
+    pushActionNotification(
+      'VERIFIED',
+      `Welcome, ${emp.name}`,
+      `Signed in as ${emp.designation} (${ROLE_CONFIGS[emp.role]?.shortLabel}).`
+    );
+  };
+
+  const handleSignOutEmployee = async () => {
     if (currentUser) {
       await logoutUser();
-      showToast('Logged out of Sportswear ERP');
-    } else {
-      try {
-        await loginWithGoogle();
-        showToast('Signed in successfully');
-      } catch (e) {
-        showToast('Google sign-in completed');
-      }
     }
+    setLoggedInEmployee(null);
+    setIsRoleSwitcherOpen(false);
+    setIsNotifDropdownOpen(false);
+    setIsChatOpen(false);
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch {
+      // Fallback to Owner login if popup blocked in preview iframe
+    }
+    const ownerEmp = employees.find((e) => e.role === 'owner') || INITIAL_EMPLOYEES[0];
+    handleLoginEmployee(ownerEmp);
+  };
+
+  // MANDATORY AUTHENTICATION GATE: No one can see or perform any task without logging in first
+  if (!loggedInEmployee) {
+    return (
+      <LoginScreen
+        employees={employees.length > 0 ? employees : INITIAL_EMPLOYEES}
+        onLoginSuccess={handleLoginEmployee}
+        onGoogleLogin={handleGoogleLogin}
+      />
+    );
+  }
+
   const openShortageCount = shortageTickets.filter((t) => t.status !== 'resolved').length;
+  const unreadNotifCount = systemNotifications.filter((n) => !n.read).length;
   const roleConfig = ROLE_CONFIGS[currentRole];
 
   return (
@@ -674,150 +1025,282 @@ export default function App() {
         language={language}
         customModuleNames={companySettings.customModuleNames}
         onSelectTab={(tab) => setActiveTab(tab)}
-        onToggleLanguage={toggleLanguage}
-        onOpenRoleSwitcher={() => setIsRoleSwitcherOpen(true)}
+        onOpenRoleSwitcher={handleOpenRoleSwitcherGuarded}
+        canSwitchRole={userAllowedToSwitchRole}
         shortageTickets={shortageTickets}
         onOpenCreateOrder={() => setIsCreateOrderOpen(true)}
         onOpenQrScanner={() => setIsQrScannerOpen(true)}
         onOpenChat={() => setIsChatOpen(true)}
         unreadChatCount={teamMessages.length}
         currentUser={currentUser}
-        onAuthAction={handleAuthAction}
+        onAuthAction={handleSignOutEmployee}
         collapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
       {/* 2. Main Enterprise Workstation Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0a0f1d]/90">
-        {/* Sticky Top Header Bar */}
-        <header className="h-14 border-b border-slate-800/80 bg-[#080c14]/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
-          {/* Left: Location Filter & Current Role Beacon */}
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1 text-xs">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-400 font-medium">
-                {language === 'bn' ? 'কারখানা:' : 'Location:'}
-              </span>
+        {/* Sticky Top Header Panel */}
+        <header className="h-14 border-b border-slate-800/80 bg-[#080c14]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-2 shrink-0 z-30">
+          {/* Left: Logged-in Person Name & Position Badge + Factory Location Filter */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Prominent Logged-In Person Name & Position Display */}
+            <div
+              data-testid="header-user-identity"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900/95 border border-emerald-500/30 shadow-sm shrink-0"
+            >
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-black text-xs flex items-center justify-center shrink-0">
+                {loggedInEmployee.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="leading-tight">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    data-testid="header-person-name"
+                    className="text-xs font-black text-white tracking-tight"
+                  >
+                    {loggedInEmployee.name}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[9px] font-bold">
+                    {loggedInEmployee.employeeId}
+                  </span>
+                </div>
+                <div
+                  data-testid="header-person-position"
+                  className="text-[10px] font-bold text-emerald-400"
+                >
+                  {loggedInEmployee.designation}
+                </div>
+              </div>
+            </div>
+
+            {/* Factory Location Filter */}
+            <div className="hidden lg:flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs whitespace-nowrap shrink-0">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="text-slate-400 font-medium">Location:</span>
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value as any)}
                 className="bg-transparent text-emerald-400 font-bold focus:outline-none cursor-pointer"
               >
                 <option value="all" className="bg-slate-900 text-white">
-                  {language === 'bn' ? 'সকল ৩টি কারখানা ও দপ্তর' : 'All 3 Factory Locations'}
+                  All 3 Factory Locations
                 </option>
                 <option value="head_office" className="bg-slate-900 text-white">
-                  {language === 'bn' ? 'বনানী হেড অফিস' : 'Head Office (Banani)'}
+                  Head Office (Banani)
                 </option>
                 <option value="print_factory" className="bg-slate-900 text-white">
-                  {language === 'bn' ? 'টঙ্গী প্রিন্ট মিল' : 'Print Factory (Tongi)'}
+                  Print Factory (Tongi)
                 </option>
                 <option value="sewing_factory" className="bg-slate-900 text-white">
-                  {language === 'bn' ? 'মিরপুর সুইং কারখানা' : 'Sewing Factory (Mirpur)'}
+                  Sewing Factory (Mirpur)
                 </option>
               </select>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border ${
-                  roleConfig?.badgeColor || 'bg-slate-800 text-white border-slate-700'
-                }`}
-              >
-                {getRoleName(currentRole, language)}
-              </span>
-            </div>
           </div>
 
-          {/* Right: Quick Tools, Scanner, Chat & Profile */}
-          <div className="flex items-center gap-2.5">
-            {/* Quick Language Toggle */}
+          {/* Right: Header Notification Bell, Task Delegate Quick Button, Chat, Role Switcher & Logout */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* BDT Currency Indicator */}
+            <span className="hidden xl:inline-flex items-center px-2 py-1 rounded-xl bg-emerald-950/70 border border-emerald-500/30 text-[11px] font-mono font-black text-emerald-300 whitespace-nowrap shrink-0">
+              ৳ BDT
+            </span>
+
+            {/* Header Notification Bell Button & Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                data-testid="header-notification-btn"
+                onClick={() => setIsNotifDropdownOpen((prev) => !prev)}
+                className={`relative px-2.5 py-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-bold whitespace-nowrap ${
+                  isNotifDropdownOpen
+                    ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+                title="System Action Notifications (DONE, APPROVED, DELEGATED)"
+              >
+                <Bell className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="hidden md:inline">Notifications</span>
+                {unreadNotifCount > 0 && (
+                  <span
+                    data-testid="header-notification-badge"
+                    className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black"
+                  >
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              <HeaderNotificationDropdown
+                isOpen={isNotifDropdownOpen}
+                onClose={() => setIsNotifDropdownOpen(false)}
+                notifications={systemNotifications}
+                delegatedTasks={delegatedTasks}
+                onMarkAllRead={() =>
+                  setSystemNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+                }
+                onClearAll={() => setSystemNotifications([])}
+                onSelectDelegatedTask={(task) => {
+                  setIsNotifDropdownOpen(false);
+                  setActiveDelegatedPopupTask(task);
+                  playInstantDelegationSound();
+                }}
+              />
+            </div>
+
+            {/* Instant Task Delegation Trigger Button in Header */}
             <button
-              onClick={toggleLanguage}
-              className="btn-press flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 text-xs font-bold transition cursor-pointer"
-              title="Toggle English / বাংলা"
+              type="button"
+              data-testid="header-instant-delegate-btn"
+              onClick={() => {
+                const targetEmp =
+                  employees.find((e) => e.id !== loggedInEmployee.id) || employees[0];
+                handleDelegateTask({
+                  title: `Priority Production Verification — ${orders[0]?.orderNumber || 'SW-2026-0891'}`,
+                  description: `Immediate department inspection and status sign-off requested by ${loggedInEmployee.name} (${loggedInEmployee.designation}).`,
+                  orderNumber: orders[0]?.orderNumber || 'SW-2026-0891',
+                  invoiceNumber: invoices[0]?.invoiceNumber || 'INV-2026-891',
+                  assignedToEmployeeId: targetEmp.id,
+                  assignedToEmployeeName: targetEmp.name,
+                  assignedToPosition: targetEmp.designation,
+                  assignedToRole: targetEmp.role,
+                  delegatedByEmployeeName: loggedInEmployee.name,
+                  delegatedByPosition: loggedInEmployee.designation,
+                  priority: 'urgent',
+                  dueTime: 'Immediate Action',
+                });
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black transition cursor-pointer whitespace-nowrap shrink-0"
+              title="Instant Delegate Task with Popup & Sound Alert"
             >
-              <Languages className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{language === 'en' ? 'বাংলা' : 'EN'}</span>
+              <BellRing className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="hidden sm:inline">Delegate Task</span>
+            </button>
+
+            {/* Quick Bulk Data Import Hub Button */}
+            <button
+              onClick={() => setActiveTab('bulk_import')}
+              className="btn-press hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0"
+              title="Bulk Import Orders, Staff, Income, Expenses, Customers, Materials & Vendors"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="hidden xl:inline">Bulk Import</span>
             </button>
 
             {/* Quick QR Scanner Button */}
             <button
               onClick={() => setIsQrScannerOpen(true)}
-              className="btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold transition cursor-pointer"
+              className="btn-press hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
               title="Scan Bundle QR Code"
             >
-              <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">{getTranslation('scanQrBtn', language)}</span>
+              <QrCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="hidden 2xl:inline">{getTranslation('scanQrBtn', language)}</span>
             </button>
 
-            {/* Internal Team Comms Button */}
+            {/* Internal Team Comms Floating Window Button */}
             <button
-              onClick={() => setIsChatOpen(true)}
-              className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition cursor-pointer"
-              title="Open Multi-Department Chat"
+              data-testid="header-open-chat-btn"
+              onClick={() => setIsChatOpen((prev) => !prev)}
+              className={`relative px-2.5 py-1.5 rounded-xl border transition cursor-pointer flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 ${
+                isChatOpen
+                  ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-950/60'
+                  : 'bg-slate-900 hover:bg-slate-800 text-indigo-300 border-slate-700'
+              }`}
+              title="Open Floating Live Chat (Supports Private Invoice DMs, @Mentions & Replies)"
             >
-              <MessageSquare className="w-4 h-4 text-indigo-400" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500" />
-            </button>
-
-            {/* B2B Client Portal Button */}
-            <button
-              onClick={() => setIsB2bPortalOpen(true)}
-              className="btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-slate-700 text-xs font-semibold transition cursor-pointer"
-              title="Open B2B Client Portal (Orders, Quotes, Ledger & Chat)"
-            >
-              <Users className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden md:inline">B2B Client Portal</span>
+              <MessageSquare className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+              <span className="hidden sm:inline">Live Chat</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             </button>
 
             {/* Enterprise Settings Button */}
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="btn-press p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition cursor-pointer"
+              className="btn-press p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition cursor-pointer shrink-0"
               title="Full System Settings, Module Names & Couriers"
             >
               <Settings className="w-4 h-4 text-emerald-400" />
-            </button>
-
-            {/* AI Assistant Button */}
-            <button
-              onClick={() => setIsChatbotOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 border border-purple-500/30 text-xs font-semibold transition cursor-pointer"
-            >
-              <Bot className="w-3.5 h-3.5 text-purple-300" />
-              <span className="hidden sm:inline">AI Co-Pilot</span>
             </button>
 
             {/* Shortage Alarm Icon (if active) */}
             {openShortageCount > 0 && (
               <button
                 onClick={() => setActiveTab('shortages')}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold animate-pulse cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold animate-pulse cursor-pointer whitespace-nowrap shrink-0"
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 <span>{openShortageCount} Re-print</span>
               </button>
             )}
 
-            {/* User Avatar / Switcher */}
+            {/* Active Role Badge / Guarded Role Switcher (Only Owner/Manager can switch) */}
             <button
-              onClick={() => setIsRoleSwitcherOpen(true)}
-              className="flex items-center gap-2 p-1 pl-2 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition cursor-pointer"
+              type="button"
+              data-testid="header-role-switcher-btn"
+              onClick={handleOpenRoleSwitcherGuarded}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition whitespace-nowrap shrink-0 ${
+                userAllowedToSwitchRole
+                  ? 'bg-slate-900 border-emerald-500/40 text-emerald-300 hover:bg-slate-800 cursor-pointer'
+                  : 'bg-slate-900/60 border-slate-800 text-slate-400 cursor-not-allowed'
+              }`}
+              title={
+                userAllowedToSwitchRole
+                  ? 'Switch Active Portal Role (Owner / Manager Privilege)'
+                  : 'Role Locked — Only Owner or Manager can switch roles'
+              }
             >
-              <div className="w-7 h-7 rounded-lg bg-emerald-600/30 text-emerald-400 font-bold text-xs flex items-center justify-center">
-                {currentRole[0].toUpperCase()}
-              </div>
-              <span className="text-xs font-bold text-slate-200 hidden lg:inline mr-1">
-                {roleConfig?.shortLabel}
-              </span>
+              {userAllowedToSwitchRole ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              )}
+              <span>{roleConfig?.shortLabel || getRoleName(currentRole, language)}</span>
+            </button>
+
+            {/* Sign Out / Switch User Button */}
+            <button
+              type="button"
+              data-testid="header-logout-btn"
+              onClick={handleSignOutEmployee}
+              className="p-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/30 transition cursor-pointer shrink-0"
+              title="Sign Out / Switch Logged-In User"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
 
-        {/* Real-time Audio Delegation Toast Alerts Stack */}
+        {/* Universal Action Notification Banner & Delegation Alerts Stack */}
         <div className="fixed top-16 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-sm w-full">
+          {toastBanner && (
+            <div
+              data-testid="action-toast-banner"
+              className="p-3.5 bg-slate-950/95 text-white text-xs font-bold rounded-2xl border border-emerald-500/50 shadow-2xl pointer-events-auto flex items-center justify-between gap-2.5 animate-in slide-in-from-top-2 duration-150"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                    toastBanner.tag === 'APPROVED'
+                      ? 'bg-emerald-500 text-slate-950'
+                      : toastBanner.tag === 'DELEGATED'
+                      ? 'bg-amber-500 text-slate-950'
+                      : toastBanner.tag === 'ALERT'
+                      ? 'bg-rose-500 text-white'
+                      : 'bg-indigo-500 text-white'
+                  }`}
+                >
+                  {toastBanner.tag}
+                </span>
+                <span className="text-slate-100 leading-snug">{toastBanner.message}</span>
+              </div>
+              <button
+                onClick={() => setToastBanner(null)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {activeAlerts.map((alert) => (
             <div
               key={alert.id}
@@ -838,10 +1321,15 @@ export default function App() {
                         : 'bg-emerald-500/20 text-emerald-400'
                     }`}
                   >
-                    <Bell className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h5 className="text-xs font-black tracking-tight">{alert.title}</h5>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.2 rounded bg-white/15 text-[9px] font-black uppercase">
+                        {alert.statusTag}
+                      </span>
+                      <h5 className="text-xs font-black tracking-tight">{alert.title}</h5>
+                    </div>
                     <span className="text-[10px] text-slate-400 font-mono">
                       {alert.targetDepartment}{' '}
                       {alert.targetEmployee ? `• ${alert.targetEmployee}` : ''}
@@ -876,18 +1364,6 @@ export default function App() {
               </div>
             </div>
           ))}
-
-          {toastMessage && (
-            <div className="p-3 bg-slate-900/90 text-white text-xs font-semibold rounded-xl border border-slate-700 shadow-xl pointer-events-auto flex items-center justify-between gap-2">
-              <span>{toastMessage}</span>
-              <button
-                onClick={() => setToastMessage(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Scrollable Workstation Main Body */}
@@ -934,18 +1410,26 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: HEAD OFFICE / MARKETING & DESIGN */}
+          {/* TAB 2: HEAD OFFICE / MARKETING & DESIGN (UPGRADED SALES & CRM) */}
           {activeTab === 'head_office' && (
             <HeadOfficeView
               orders={orders}
               shortageTickets={shortageTickets}
               currentRole={currentRole}
+              employees={employees}
+              invoices={invoices}
+              currentUserName={loggedInEmployee.name}
+              currentUserPosition={loggedInEmployee.designation}
               externalDesignToolName={companySettings.externalDesignToolName}
               onUpdateOrder={handleUpdateOrder}
               onSelectOrder={(ord) => setSelectedOrder(ord)}
               onOpenCreateOrder={() => setIsCreateOrderOpen(true)}
               onOpenCustomersCrm={() => setActiveTab('customers_crm')}
-              onOpen3DStudio={() => setActiveTab('3d_studio')}
+              onDelegateTask={handleDelegateTask}
+              onOpenPrivateInvoiceChat={handleOpenPrivateInvoiceChat}
+              onNotifyAction={(tag, title, message) =>
+                pushActionNotification(tag, title, message)
+              }
             />
           )}
 
@@ -999,7 +1483,7 @@ export default function App() {
             />
           )}
 
-          {/* TAB 3: ACCOUNTING & LEDGERS */}
+          {/* TAB 3: ACCOUNTING & LEDGERS (UPGRADED) */}
           {activeTab === 'accounting' && (
             <AccountingModule
               invoices={invoices}
@@ -1020,6 +1504,10 @@ export default function App() {
               onUpdateInvoice={handleUpdateInvoice}
               onCreateBankAccount={handleCreateBankAccount}
               onOpenClientPortal={() => setIsB2bPortalOpen(true)}
+              onOpenPrivateInvoiceChat={handleOpenPrivateInvoiceChat}
+              onNotifyAction={(tag, title, message) =>
+                pushActionNotification(tag, title, message)
+              }
             />
           )}
 
@@ -1071,15 +1559,19 @@ export default function App() {
             />
           )}
 
-          {/* TAB 6: EMPLOYEE PERSONAL WORKSTATION */}
+          {/* TAB 6: EMPLOYEE PERSONAL WORKSTATION (UPGRADED) */}
           {activeTab === 'employee_portal' && (
             <EmployeePortal
               orders={orders}
               employees={employees}
+              loggedInEmployee={loggedInEmployee}
+              canSwitchEmployee={userAllowedToSwitchRole}
               attendance={attendance}
               payslips={payslips}
               shortageTickets={shortageTickets}
               currentRole={currentRole}
+              delegatedTasks={delegatedTasks}
+              messages={teamMessages}
               onPunchAttendance={handlePunchAttendance}
               onUpdateOrder={handleUpdateOrder}
               onSelectOrder={(ord) => setSelectedOrder(ord)}
@@ -1087,16 +1579,18 @@ export default function App() {
                 setOrderForShortage(ord || null);
                 setIsRaiseShortageOpen(true);
               }}
+              onAcceptDelegatedTask={handleAcceptDelegatedTask}
+              onCompleteDelegatedTask={handleCompleteDelegatedTask}
+              onOpenChat={() => setIsChatOpen(true)}
+              onNotifyAction={(tag, title, message) =>
+                pushActionNotification(tag, title, message)
+              }
             />
           )}
 
-          {/* TAB 7: 3D JERSEY STUDIO */}
-          {activeTab === '3d_studio' && (
-            <ThreeDStudio
-              orders={orders}
-              activeOrder={selectedOrder}
-              onApply3DToOrder={handleApplyMockup}
-            />
+          {/* TAB 7: BULK DATA IMPORT & OFFLINE-TO-ONLINE MIGRATION HUB */}
+          {activeTab === 'bulk_import' && (
+            <BulkImportModule onImportComplete={(msg) => showToast(msg, 'DONE')} />
           )}
 
           {/* TAB 9: TONGI PRINT FACTORY */}
@@ -1108,6 +1602,7 @@ export default function App() {
               onUpdateOrder={handleUpdateOrder}
               onSelectOrder={(ord) => setSelectedOrder(ord)}
               employees={employees}
+              inventory={inventory}
               onOpenEmployeeProfile={(emp) => setSelectedEmployeeForProfile(emp)}
               onUpdateEmployee={handleUpdateEmployee}
             />
@@ -1131,17 +1626,24 @@ export default function App() {
             />
           )}
 
-          {/* TAB 11: SHORTAGE TICKETS RED ALERT */}
+          {/* TAB 11: SHORTAGE TICKETS RED ALERT (UPGRADED) */}
           {activeTab === 'shortages' && (
             <ShortageTicketsView
               shortageTickets={shortageTickets}
               currentRole={currentRole}
               orders={orders}
+              employees={employees}
+              currentUserName={loggedInEmployee.name}
+              currentUserPosition={loggedInEmployee.designation}
               onUpdateTicket={handleUpdateShortageTicket}
               onOpenRaiseModal={() => {
                 setOrderForShortage(null);
                 setIsRaiseShortageOpen(true);
               }}
+              onDelegateTask={handleDelegateTask}
+              onNotifyAction={(tag, title, message) =>
+                pushActionNotification(tag, title, message)
+              }
             />
           )}
 
@@ -1188,10 +1690,25 @@ export default function App() {
               onNavigateTab={(tab) => setActiveTab(tab)}
             />
           )}
+
+          {/* Official Software Authorized Info Footer */}
+          <SoftwareAuthorizedInfoCard variant="footer" />
         </main>
       </div>
 
       {/* 3. Global Modals & Interactive Overlays */}
+      <TaskDelegationPopupModal
+        task={activeDelegatedPopupTask}
+        onClose={() => setActiveDelegatedPopupTask(null)}
+        onAcceptTask={handleAcceptDelegatedTask}
+        onCompleteTask={handleCompleteDelegatedTask}
+        onOpenOrder={(orderNum) => {
+          const found = orders.find((o) => o.orderNumber === orderNum);
+          if (found) setSelectedOrder(found);
+          setActiveDelegatedPopupTask(null);
+        }}
+      />
+
       <BundleQrCodeModal
         order={bundleQrOrder}
         isOpen={Boolean(bundleQrOrder)}
@@ -1207,27 +1724,48 @@ export default function App() {
 
       <InternalChatDrawer
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onClose={() => {
+          setIsChatOpen(false);
+          setChatPreselectedInvoice('');
+          setChatPreselectedRecipientId('');
+        }}
         currentRole={currentRole}
-        currentUserName={currentUser?.displayName || ROLE_CONFIGS[currentRole]?.shortLabel}
+        currentUserName={loggedInEmployee.name}
+        loggedInEmployee={loggedInEmployee}
+        employees={employees}
         orders={orders}
         invoices={invoices}
         faqs={marketingFaqs}
         onOpenOrder={(ord) => setSelectedOrder(ord)}
         onNavigateTab={(tab) => setActiveTab(tab)}
         messages={teamMessages}
+        preSelectedPrivateInvoice={
+          chatPreselectedInvoice
+            ? invoices.find((inv) => inv.invoiceNumber === chatPreselectedInvoice) || null
+            : null
+        }
+        preSelectedPrivateRecipientId={chatPreselectedRecipientId || null}
         onSendPhoneNotification={(phone, msg) =>
-          showToast(`SMS Dispatched to ${phone}: "${msg.slice(0, 35)}..."`)
+          pushActionNotification(
+            'DONE',
+            `SMS Alert Dispatched to ${phone}`,
+            `"${msg.slice(0, 45)}..."`
+          )
         }
       />
 
       <RoleSwitcherModal
-        isOpen={isRoleSwitcherOpen}
+        isOpen={isRoleSwitcherOpen && userAllowedToSwitchRole}
         onClose={() => setIsRoleSwitcherOpen(false)}
         currentRole={currentRole}
         onSelectRole={(r) => {
+          if (!userAllowedToSwitchRole) return;
           setCurrentRole(r);
-          showToast(`Switched portal view to ${r.replace('_', ' ')}`);
+          pushActionNotification(
+            'APPROVED',
+            `Active Role Switched`,
+            `${loggedInEmployee.name} switched portal view to ${ROLE_CONFIGS[r]?.title || r}.`
+          );
         }}
       />
 
@@ -1247,8 +1785,11 @@ export default function App() {
         isOpen={isCreateOrderOpen}
         onClose={() => setIsCreateOrderOpen(false)}
         onCreateOrder={handleCreateOrder}
+        onDelegateTask={handleDelegateTask}
         employees={employees}
         customers={customers}
+        currentUserName={loggedInEmployee.name}
+        currentUserPosition={loggedInEmployee.designation}
       />
 
       <RaiseShortageModal
@@ -1268,7 +1809,11 @@ export default function App() {
         onUpdatePermissions={handleUpdatePermissions}
         onUpdateEmployee={handleUpdateEmployee}
         onSendPhoneNotification={(phone, msg) =>
-          showToast(`SMS Dispatched to ${phone}: "${msg.slice(0, 35)}..."`)
+          pushActionNotification(
+            'DONE',
+            `SMS Dispatched to ${phone}`,
+            `"${msg.slice(0, 40)}..."`
+          )
         }
         assignedOrders={orders.filter(
           (o) =>
@@ -1302,7 +1847,11 @@ export default function App() {
         currentRole={currentRole}
         language={language}
         onSendMessageToMarketing={(_cid, msg) =>
-          showToast(`Client Portal message sent to Marketing: "${msg.slice(0, 35)}..."`)
+          pushActionNotification(
+            'DONE',
+            'Client Portal Message Received',
+            `"${msg.slice(0, 45)}..."`
+          )
         }
       />
 

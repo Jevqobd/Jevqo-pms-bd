@@ -315,9 +315,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </span>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Raw Stock Valuation</span>
+          <span className="text-[10px] font-bold uppercase text-slate-400">Raw Stock Valuation (BDT)</span>
           <div className="text-xl font-black text-emerald-400 font-mono mt-1">
-            ${totalInventoryValuation.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            ৳{totalInventoryValuation.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
           <span className="text-[11px] text-slate-400">Live unit cost calculation</span>
         </div>
@@ -327,9 +327,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <span className="text-[11px] text-slate-400">PCs, Printers & Sewing Machines</span>
         </div>
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Hardware Asset Value</span>
+          <span className="text-[10px] font-bold uppercase text-slate-400">Hardware Asset Value (BDT)</span>
           <div className="text-xl font-black text-amber-400 font-mono mt-1">
-            ${totalAssetValuation.toLocaleString()}
+            ৳{totalAssetValuation.toLocaleString()}
           </div>
           <span className="text-[11px] text-slate-400">Assigned to factory staff</span>
         </div>
@@ -510,7 +510,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
                     <div>
                       <span className="text-slate-400 text-[11px] font-mono">
-                        Cost: <strong className="text-white">${item.unitCost || 0}</strong>/{item.unit}
+                        Cost: <strong className="text-white">৳{item.unitCost || 0}</strong>/{item.unit}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -664,7 +664,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   {/* Status Switcher & Value Footer */}
                   <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
                     <span className="text-[11px] font-mono text-slate-400">
-                      Value: <strong className="text-white">${asset.purchaseValue.toLocaleString()}</strong>
+                      Value: <strong className="text-white">৳{asset.purchaseValue.toLocaleString()} BDT</strong>
                     </span>
 
                     <select
@@ -826,7 +826,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Unit Cost ($)</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-400">Unit Cost (৳ BDT)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1028,7 +1028,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400">Purchase Value ($)</label>
+                  <label className="text-[10px] font-bold uppercase text-slate-400">Purchase Value (৳ BDT)</label>
                   <input
                     type="number"
                     value={assetDraft.purchaseValue}

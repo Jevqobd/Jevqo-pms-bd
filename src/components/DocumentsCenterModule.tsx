@@ -225,9 +225,7 @@ export const DocumentsCenterModule: React.FC<DocumentsCenterModuleProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black tracking-tight">
-                {language === 'bn'
-                  ? 'কোম্পানি ডকুমেন্টস ও অফিসিয়াল লেটারহেড সেন্টার'
-                  : 'Official Company Documents & Letterhead Generator'}
+                {'Official Company Documents & Letterhead Generator'}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-bold text-[10px]">
                 Challans &bull; Purchase Orders &bull; QC Certificates &bull; Memos

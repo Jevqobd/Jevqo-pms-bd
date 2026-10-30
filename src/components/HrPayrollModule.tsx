@@ -218,16 +218,14 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-black tracking-tight text-white">
-                {language === 'bn' ? 'এইচআর, বায়োমেট্রিক হাজিরা ও পেরোল' : 'Human Resources, Biometrics & Payroll'}
+                {'Human Resources, Biometrics & Payroll'}
               </h2>
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                {language === 'bn' ? 'সকল কারখানা ওয়ার্কফোর্স' : '3 Facilities Connected'}
+                {'3 Facilities Connected'}
               </span>
             </div>
             <p className="text-xs text-slate-400 max-w-2xl mt-0.5">
-              {language === 'bn'
-                ? 'বনানী হেড অফিস, টঙ্গী প্রিন্ট মিল এবং মিরপুর সুইং কারখানার কর্মীদের দৈনিক হাজিরা, ওভারটাইম হিসাব ও সরাসরি বেতন বিতরণ।'
-                : 'Centralized staff records across Banani HQ, Tongi Sublimation Mill, and Mirpur Sewing Factory with role-based manager attendance punching.'}
+              {'Centralized staff records across Banani HQ, Tongi Sublimation Mill, and Mirpur Sewing Factory with role-based manager attendance punching.'}
             </p>
           </div>
         </div>
@@ -239,7 +237,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
               className="btn-press flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/50 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>{language === 'bn' ? 'নতুন কর্মী যুক্ত করুন' : 'Add Employee'}</span>
+              <span>{'Add Employee'}</span>
             </button>
           )}
         </div>
@@ -249,34 +247,34 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="card-hover p-4 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-lg">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            {language === 'bn' ? 'আজকের হাজিরা উপস্থিতি' : "Today's Attendance Rate"}
+            {"Today's Attendance Rate"}
           </span>
           <div className="text-2xl font-black text-emerald-400 mt-1 font-mono">
             {presentCount} / {employees.length}
           </div>
           <span className="text-[11px] text-slate-400">
-            {Math.round((presentCount / (employees.length || 1)) * 100)}% {language === 'bn' ? 'উপস্থিতি হার' : 'active workforce'}
+            {Math.round((presentCount / (employees.length || 1)) * 100)}% {'active workforce'}
           </span>
         </div>
 
         <div className="card-hover p-4 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-lg">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            {language === 'bn' ? 'মাসিক বেতন বাজেট' : 'Monthly Payroll Budget'}
+            {'Monthly Payroll Budget'}
           </span>
           <div className="text-2xl font-black text-indigo-400 mt-1 font-mono">
             ৳{totalPayrollBudget.toLocaleString()}
           </div>
           <span className="text-[11px] text-slate-400">
-            {language === 'bn' ? 'বেসিক বেতন প্রতিশ্রুতি' : 'Base wage commitment'}
+            {'Base wage commitment'}
           </span>
         </div>
 
         <div className="card-hover p-4 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-lg">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            {language === 'bn' ? 'সক্রিয় শিফট রোটেশন' : 'Active Shift Rotations'}
+            {'Active Shift Rotations'}
           </span>
           <div className="text-2xl font-black text-teal-400 mt-1 font-mono">
-            {language === 'bn' ? 'সকাল ও জেনারেল শিফট' : 'Morning & General'}
+            {'Morning & General'}
           </div>
           <span className="text-[11px] text-teal-400/80">
             8-Hour Standard + Overtime Tier
@@ -297,7 +295,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
         >
           <UserCheck className="w-4 h-4 text-emerald-300" />
           <span>
-            {language === 'bn' ? 'বিভাগীয় ম্যানেজার হাজিরা টার্মিনাল' : 'Dept Manager Attendance Terminal'}
+            {'Dept Manager Attendance Terminal'}
           </span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 font-mono">
             Manager Entry
@@ -313,7 +311,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          <span>{language === 'bn' ? 'কর্মী তালিকা' : 'Staff Directory'} ({employees.length})</span>
+          <span>{'Staff Directory'} ({employees.length})</span>
         </button>
 
         <button
@@ -325,7 +323,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
-          <span>{language === 'bn' ? 'লাইভ হাজিরা লগ' : 'Daily Punch Log'}</span>
+          <span>{'Daily Punch Log'}</span>
         </button>
 
         <button
@@ -337,7 +335,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
           }`}
         >
           <DollarSign className="w-3.5 h-3.5" />
-          <span>{language === 'bn' ? 'পেরোল ও স্যালারি স্লিপ' : 'Payroll & Salary Slips'} ({payslips.length})</span>
+          <span>{'Payroll & Salary Slips'} ({payslips.length})</span>
         </button>
       </div>
 
@@ -350,16 +348,14 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-black text-sm text-white">
-                  {language === 'bn' ? 'বিভাগীয় ম্যানেজার হাজিরা কন্ট্রোল' : 'Department Manager Punch Portal'}
+                  {'Department Manager Punch Portal'}
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
                   {currentRole.toUpperCase()}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                {language === 'bn'
-                  ? 'আপনার কারখানার বা বিভাগের কর্মীদের প্রতিদিনের উপস্থিতি, ওভারটাইম ও বিলম্ব তাৎক্ষণিকভাবে রেকর্ড করুন।'
-                  : 'Punch and log daily attendance, shifts, and overtime hours for factory workers in your specific location.'}
+                {'Punch and log daily attendance, shifts, and overtime hours for factory workers in your specific location.'}
               </p>
             </div>
 
@@ -367,24 +363,24 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
               {/* Location / Department Filter */}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
-                  {language === 'bn' ? 'কারখানা বা বিভাগ' : 'Facility / Department'}
+                  {'Facility / Department'}
                 </label>
                 <select
                   value={managerLocation}
                   onChange={(e) => setManagerLocation(e.target.value)}
                   className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-950 text-xs font-bold text-white focus:outline-none focus:border-teal-500"
                 >
-                  <option value="all">{language === 'bn' ? 'সকল কারখানা' : 'All Facilities'}</option>
-                  <option value="print_factory">{language === 'bn' ? 'টঙ্গী প্রিন্ট মিল (Tongi)' : 'Tongi Print Mill'}</option>
-                  <option value="sewing_factory">{language === 'bn' ? 'মিরপুর সুইং কারখানা (Mirpur)' : 'Mirpur Sewing Factory'}</option>
-                  <option value="head_office">{language === 'bn' ? 'বনানী হেড অফিস (Banani HQ)' : 'Banani Head Office'}</option>
+                  <option value="all">{'All Facilities'}</option>
+                  <option value="print_factory">{'Tongi Print Mill'}</option>
+                  <option value="sewing_factory">{'Mirpur Sewing Factory'}</option>
+                  <option value="head_office">{'Banani Head Office'}</option>
                 </select>
               </div>
 
               {/* Date Selector */}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
-                  {language === 'bn' ? 'তারিখ' : 'Date'}
+                  {'Date'}
                 </label>
                 <input
                   type="date"
@@ -405,8 +401,8 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                   <Zap className="w-3.5 h-3.5 text-teal-200" />
                   <span>
                     {isBatchPunching
-                      ? (language === 'bn' ? 'রেকর্ড হচ্ছে...' : 'Marking...')
-                      : (language === 'bn' ? 'এক ক্লিকে সবাইকে উপস্থিত করুন' : '1-Click: Mark All Present')}
+                      ? ('Marking...')
+                      : ('1-Click: Mark All Present')}
                   </span>
                 </button>
               </div>
@@ -453,7 +449,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                             : 'bg-slate-800 text-slate-400 border border-slate-700'
                         }`}
                       >
-                        {punch ? punch.status.toUpperCase() : (language === 'bn' ? 'অপেক্ষমাণ' : 'UNPUNCHED')}
+                        {punch ? punch.status.toUpperCase() : ('UNPUNCHED')}
                       </span>
                     </div>
 
@@ -477,7 +473,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                         }`}
                       >
                         <Check className="w-3 h-3" />
-                        <span>{language === 'bn' ? 'উপস্থিত' : 'Present'}</span>
+                        <span>{'Present'}</span>
                       </button>
 
                       <button
@@ -489,7 +485,7 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                         }`}
                       >
                         <Clock className="w-3 h-3" />
-                        <span>{language === 'bn' ? 'বিলম্বে' : 'Late'}</span>
+                        <span>{'Late'}</span>
                       </button>
 
                       <button
@@ -501,14 +497,14 @@ export const HrPayrollModule: React.FC<HrPayrollModuleProps> = ({
                         }`}
                       >
                         <X className="w-3 h-3" />
-                        <span>{language === 'bn' ? 'অনুপস্থিত' : 'Absent'}</span>
+                        <span>{'Absent'}</span>
                       </button>
                     </div>
 
                     {/* Overtime Steppers */}
                     <div className="flex items-center justify-between text-[11px] pt-1">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">
-                        {language === 'bn' ? 'ওভারটাইম যুক্ত করুন:' : 'Add Overtime:'}
+                        {'Add Overtime:'}
                       </span>
                       <div className="flex items-center gap-1">
                         <button

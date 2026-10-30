@@ -21,7 +21,6 @@ import {
   Printer,
   Scissors,
   AlertTriangle,
-  Sparkles,
   Package,
   DollarSign,
   Users,
@@ -37,18 +36,17 @@ import {
   LogIn,
   Shirt,
   Layers,
-  Wand2,
-  Search,
   Plus,
-  Languages,
-  CheckCircle2,
   FileText,
   BookOpen,
   Star,
   Truck,
   FlaskConical,
+  Database,
+  Lock,
 } from 'lucide-react';
 import { isAudioEnabled, setAudioEnabled } from '../utils/soundEffects';
+import { SoftwareAuthorizedInfoCard } from './SoftwareAuthorizedInfoCard';
 
 export type NavTab =
   | 'dashboard_tasks'
@@ -63,7 +61,7 @@ export type NavTab =
   | 'inventory'
   | 'documents_center'
   | 'guidelines_sop'
-  | '3d_studio'
+  | 'bulk_import'
   | 'print_floor'
   | 'sewing_floor'
   | 'shortages'
@@ -73,11 +71,12 @@ export type NavTab =
 interface SidebarProps {
   currentRole: UserRole;
   activeTab: NavTab;
-  language: Language;
+  language?: Language;
   customModuleNames?: Record<string, string>;
   onSelectTab: (tab: NavTab) => void;
-  onToggleLanguage: () => void;
+  onToggleLanguage?: () => void;
   onOpenRoleSwitcher: () => void;
+  canSwitchRole?: boolean;
   shortageTickets: ShortageTicket[];
   onOpenCreateOrder: () => void;
   onOpenQrScanner: () => void;
@@ -92,11 +91,11 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentRole,
   activeTab,
-  language,
+  language = 'en',
   customModuleNames = {},
   onSelectTab,
-  onToggleLanguage,
   onOpenRoleSwitcher,
+  canSwitchRole = true,
   shortageTickets,
   onOpenCreateOrder,
   onOpenQrScanner,
@@ -124,7 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     switch (tab) {
       case 'dashboard_tasks':
       case 'guidelines_sop':
-        return true; // Everyone sees Dashboard, Tasks & Guidelines!
+      case 'bulk_import':
+        return true; // Everyone sees Dashboard, Tasks, Bulk Import & Guidelines!
       case 'orders':
         return currentRole !== 'floor_worker';
       case 'head_office':
@@ -158,8 +158,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           currentRole === 'print_factory' ||
           currentRole === 'sewing_factory'
         );
-      case '3d_studio':
-        return currentRole === 'design_mockup' || currentRole === 'design_pattern';
       case 'print_floor':
         return currentRole === 'print_factory';
       case 'sewing_floor':
@@ -211,10 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'customers_crm',
-      label: resolveLabel(
-        'customers_crm',
-        language === 'bn' ? 'গ্রাহক তালিকা ও মার্কেটিং গাইড' : 'Customer List & Playbook'
-      ),
+      label: resolveLabel('customers_crm', getTranslation('navCustomersCrm', language)),
       icon: <Star className="w-4 h-4" />,
       badge: 'VIP',
       badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
@@ -242,27 +237,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'product_dev_samples',
-      label: resolveLabel(
-        'product_dev_samples',
-        language === 'bn' ? 'পণ্য উন্নয়ন ও স্যাম্পল ল্যাব' : 'Product Dev & Samples'
-      ),
+      label: resolveLabel('product_dev_samples', getTranslation('navProductDev', language)),
       icon: <FlaskConical className="w-4 h-4" />,
       badge: 'NPD/BOM',
       badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
       category: 'design',
     },
     {
-      id: '3d_studio',
-      label: resolveLabel('3d_studio', getTranslation('nav3dStudio', language)),
-      icon: <Shirt className="w-4 h-4" />,
+      id: 'bulk_import',
+      label: resolveLabel('bulk_import', getTranslation('navBulkImport', language)),
+      icon: <Database className="w-4 h-4" />,
+      badge: 'CSV/Excel',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
       category: 'design',
     },
     {
       id: 'vendors_suppliers',
-      label: resolveLabel(
-        'vendors_suppliers',
-        language === 'bn' ? 'ভেন্ডর ও সাপ্লায়ার (PO/GRN)' : 'Vendors & Suppliers'
-      ),
+      label: resolveLabel('vendors_suppliers', getTranslation('navVendors', language)),
       icon: <Truck className="w-4 h-4" />,
       badge: 'PO/GRN',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
@@ -272,16 +263,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'accounting',
       label: resolveLabel('accounting', getTranslation('navAccounting', language)),
       icon: <DollarSign className="w-4 h-4" />,
-      badge: currentRole === 'marketing' ? 'Invoice/Pay' : undefined,
+      badge: currentRole === 'marketing' ? 'BDT' : undefined,
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
       category: 'finance',
     },
     {
       id: 'inventory',
-      label: resolveLabel(
-        'inventory',
-        language === 'bn' ? 'ইনভেন্টরি ও কোম্পানি অ্যাসেট' : 'Inventory & Assets'
-      ),
+      label: resolveLabel('inventory', getTranslation('navInventory', language)),
       icon: <Package className="w-4 h-4" />,
       badge: 'Metrics/PC',
       badgeColor: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30',
@@ -289,19 +277,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'documents_center',
-      label: resolveLabel(
-        'documents_center',
-        language === 'bn' ? 'কোম্পানি ডকুমেন্টস ও চালান' : 'Company Documents'
-      ),
+      label: resolveLabel('documents_center', getTranslation('navDocuments', language)),
       icon: <FileText className="w-4 h-4" />,
       category: 'finance',
     },
     {
       id: 'users_employees',
-      label: resolveLabel(
-        'users_employees',
-        language === 'bn' ? 'ইউজার ও কর্মী তালিকা' : 'User & Employee List'
-      ),
+      label: resolveLabel('users_employees', getTranslation('navUsersEmployees', language)),
       icon: <Users className="w-4 h-4" />,
       category: 'workforce',
     },
@@ -332,10 +314,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'guidelines_sop',
-      label: resolveLabel(
-        'guidelines_sop',
-        language === 'bn' ? 'গাইডলাইন ও ডেটা সিঙ্ক' : 'Guidelines & Data Sync'
-      ),
+      label: resolveLabel('guidelines_sop', getTranslation('navGuidelines', language)),
       icon: <BookOpen className="w-4 h-4" />,
       badge: 'SOP',
       badgeColor: 'bg-teal-500/20 text-teal-300 border border-teal-500/30',
@@ -364,7 +343,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
               <p className="text-[9px] font-semibold text-slate-400 tracking-wider truncate uppercase">
-                {language === 'bn' ? 'এন্টারপ্রাইজ ইআরপি' : 'Enterprise ERP'}
+                Enterprise ERP (৳ BDT)
               </p>
             </div>
           </div>
@@ -383,67 +362,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Language Switcher Pill */}
-      {!collapsed ? (
-        <div className="px-3.5 pt-3 pb-1">
-          <div className="flex items-center justify-between p-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold">
-            <span className="flex items-center gap-1.5 text-slate-400 pl-2">
-              <Languages className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{language === 'bn' ? 'ভাষা' : 'Language'}</span>
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={language === 'en' ? undefined : onToggleLanguage}
-                className={`btn-press px-2.5 py-1 rounded-lg transition text-xs font-black cursor-pointer ${
-                  language === 'en'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                EN
-              </button>
-              <button
-                onClick={language === 'bn' ? undefined : onToggleLanguage}
-                className={`btn-press px-2.5 py-1 rounded-lg transition text-xs font-black cursor-pointer ${
-                  language === 'bn'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                বাংলা
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="px-2 pt-2 text-center">
-          <button
-            onClick={onToggleLanguage}
-            title={language === 'en' ? 'Switch to Bangla' : 'Switch to English'}
-            className="btn-press p-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-black text-emerald-400 w-full"
-          >
-            {language === 'en' ? 'BN' : 'EN'}
-          </button>
-        </div>
-      )}
-
-      {/* Role / Persona Badge */}
+      {/* Role / Persona Badge (Switchable ONLY by Owner or Manager) */}
       <div className="px-3 py-2.5">
         <button
           onClick={onOpenRoleSwitcher}
-          title="Click to Switch Portal Role"
-          className={`btn-press w-full flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 transition-colors text-left group cursor-pointer ${
-            collapsed ? 'justify-center p-2' : ''
-          }`}
+          data-testid="sidebar-role-switcher-btn"
+          title={
+            canSwitchRole
+              ? 'Click to Switch Active Role (Owner/Manager Privilege)'
+              : 'Active Role is Locked for your position (Only Owner/Manager can switch)'
+          }
+          className={`btn-press w-full flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border transition-colors text-left group ${
+            canSwitchRole
+              ? 'border-slate-800 hover:border-emerald-500/40 cursor-pointer'
+              : 'border-slate-800/70 opacity-90 cursor-not-allowed'
+          } ${collapsed ? 'justify-center p-2' : ''}`}
         >
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
           {!collapsed && (
             <div className="truncate flex-1">
               <div className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-between">
-                <span>{language === 'bn' ? 'বর্তমান ভূমিকা' : 'Active Role'}</span>
-                <span className="text-[9px] text-emerald-400 group-hover:underline">
-                  {language === 'bn' ? 'পরিবর্তন' : 'Switch'}
-                </span>
+                <span>Active Role</span>
+                {canSwitchRole ? (
+                  <span className="text-[9px] text-emerald-400 group-hover:underline">
+                    Switch
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-amber-400 flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </div>
               <div className="text-xs font-bold text-white truncate">
                 {getRoleName(currentRole, language)}
@@ -694,22 +642,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Auth action */}
         <button
           onClick={onAuthAction}
-          title={currentUser ? 'Log out' : 'Log in with Google'}
-          className={`btn-press w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors cursor-pointer ${
+          data-testid="sidebar-signout-btn"
+          title="Sign Out & Lock Terminal"
+          className={`btn-press w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[11px] font-medium text-rose-300 hover:text-white hover:bg-rose-950/50 transition-colors cursor-pointer ${
             collapsed ? 'justify-center px-0' : ''
           }`}
         >
-          {currentUser ? (
-            <LogOut className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-          ) : (
-            <LogIn className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          )}
-          {!collapsed && (
-            <span className="truncate">
-              {currentUser ? (language === 'bn' ? 'সাইন আউট' : 'Sign Out') : (language === 'bn' ? 'সাইন ইন' : 'Sign In')}
-            </span>
-          )}
+          <LogOut className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+          {!collapsed && <span className="truncate">Sign Out / Switch User</span>}
         </button>
+
+        {/* Official Software Authorized Info */}
+        <SoftwareAuthorizedInfoCard variant="sidebar" collapsed={collapsed} />
       </div>
     </aside>
   );

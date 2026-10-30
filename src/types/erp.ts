@@ -68,6 +68,19 @@ export interface Order {
   assignedToEmployeeId?: string;
   assignedToEmployeeName?: string;
   externalDesignProjectId?: string;
+  // Print Factory Sublimation, Fabric, Heat Press, Ribbon & Collar Consumption Log
+  printedMeters?: number;
+  fabricUsedName?: string;
+  fabricUsedKg?: number;
+  fabricUsedMeters?: number;
+  heatPressJerseyCount?: number;
+  ribbonUsedMeters?: number;
+  ribbonUsedKg?: number;
+  collarUsedPcs?: number;
+  collarTypeUsed?: string;
+  printLogNotes?: string;
+  printLogUpdatedBy?: string;
+  printLogUpdatedAt?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -557,16 +570,30 @@ export interface TeamMessageAttachment {
   durationSec?: number;
 }
 
+export interface TeamMessageReplyRef {
+  messageId: string;
+  senderName: string;
+  contentSnippet: string;
+  invoiceRef?: string;
+}
+
 export interface TeamMessage {
   id: string;
   channelId: TeamChannelId;
   senderId: string;
   senderName: string;
   senderRole: UserRole;
+  senderPosition?: string;
   senderAvatar?: string;
   content: string;
   status?: 'sent' | 'delivered' | 'read';
   isPinned?: boolean;
+  isPrivate?: boolean;
+  recipientEmployeeIds?: string[];
+  recipientEmployeeNames?: string[];
+  relatedInvoiceNumber?: string;
+  relatedInvoiceAssignedEmployeeId?: string;
+  replyTo?: TeamMessageReplyRef;
   reactions?: Record<string, number>;
   taggedEmployees?: string[];
   taggedDepartments?: string[];
@@ -575,6 +602,55 @@ export interface TeamMessage {
   attachment?: TeamMessageAttachment;
   createdAt: string;
 }
+
+export type ActionStatusTag = 'DONE' | 'APPROVED' | 'DELEGATED' | 'VERIFIED' | 'ALERT';
+
+export interface SystemNotification {
+  id: string;
+  title: string;
+  message: string;
+  statusTag: ActionStatusTag;
+  actorName: string;
+  actorPosition: string;
+  targetPersonName?: string;
+  targetEmployeeName?: string;
+  targetPersonPosition?: string;
+  targetDepartment?: string;
+  relatedOrderNumber?: string;
+  relatedInvoiceNumber?: string;
+  relatedOrderOrInvoice?: string;
+  isRead?: boolean;
+  read?: boolean;
+  createdAt?: string;
+  timestamp?: string;
+}
+
+export interface DelegatedTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'normal' | 'high' | 'urgent';
+  status: 'pending' | 'accepted' | 'completed';
+  assignedToEmployeeId: string;
+  assignedToEmployeeName: string;
+  assignedToPosition: string;
+  assignedToRole: UserRole;
+  delegatedByEmployeeName: string;
+  delegatedByPosition: string;
+  orderNumber?: string;
+  invoiceNumber?: string;
+  delegatedToEmployeeId?: string;
+  delegatedToName?: string;
+  delegatedToPosition?: string;
+  delegatedToDepartment?: string;
+  delegatedByName?: string;
+  relatedOrderNumber?: string;
+  relatedInvoiceNumber?: string;
+  dueTime?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
 
 export interface CompanySettings {
   companyName: string;

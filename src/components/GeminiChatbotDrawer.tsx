@@ -44,8 +44,6 @@ export const GeminiChatbotDrawer: React.FC<GeminiChatbotDrawerProps> = ({
   shortageTickets = [],
   customers = [],
 }) => {
-  if (!isOpen) return null;
-
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'm-init',
@@ -79,8 +77,12 @@ export const GeminiChatbotDrawer: React.FC<GeminiChatbotDrawerProps> = ({
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading]);
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, loading, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSendMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || input;

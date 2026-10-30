@@ -233,9 +233,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-black tracking-tight">
-                {language === 'bn'
-                  ? 'কাস্টমার লিস্ট, লয়্যালটি প্রিভিলেজ ও মার্কেটিং প্লেবুক'
-                  : 'Customers Directory, Loyalty Privileges & Marketing Playbook'}
+                {'Customers Directory, Loyalty Privileges & Marketing Playbook'}
               </h2>
               <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 font-black text-[10px]">
                 ⭐ Returning Ratio & VIP Star Privileges
@@ -295,7 +293,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
           <span className="text-[10px] font-bold uppercase text-slate-400">Marketing Q&A Scripts</span>
           <div className="text-xl font-black text-indigo-400 mt-1">{faqs.length} Ready Replies</div>
-          <span className="text-[11px] text-slate-400">English & বাংলা instant copy</span>
+ <span className="text-[11px] text-slate-400">English & instant copy</span>
         </div>
       </div>
 
@@ -526,7 +524,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           cust.outstandingBalance > 0 ? 'text-amber-400' : 'text-emerald-400'
                         }`}
                       >
-                        ${cust.outstandingBalance.toLocaleString()}
+                        ৳{cust.outstandingBalance.toLocaleString()}
                       </span>
                     </div>
 
@@ -694,7 +692,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                   <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase text-emerald-400">
-                        🇧🇩 বাংলা রিপ্লাই স্ক্রিপ্ট (Bangla Reply)
+ 🇧🇩 Bangla Reply
                       </span>
                       <button
                         onClick={() => handleCopyText(`${faq.id}-bn`, faq.answerBn)}
@@ -702,11 +700,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                       >
                         {copiedId === `${faq.id}-bn` ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-400" /> কপি হয়েছে!
+ <Check className="w-3 h-3 text-emerald-400" /> !
                           </>
                         ) : (
                           <>
-                            <Copy className="w-3 h-3" /> Copy বাংলা
+ <Copy className="w-3 h-3" /> Copy 
                           </>
                         )}
                       </button>
@@ -940,7 +938,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400">বাংলা উত্তর (Bangla Reply Script)</label>
+ <label className="text-[10px] font-bold uppercase text-slate-400"> Bangla Reply Script</label>
                 <textarea
                   rows={3}
                   value={faqDraft.answerBn}

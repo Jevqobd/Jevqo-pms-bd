@@ -131,3 +131,39 @@ export function playSuccessChime() {
     console.warn('Success chime failed:', err);
   }
 }
+
+/**
+ * Distinct, attention-grabbing 3-note task delegation alert chime
+ * when a task is delegated to a specific employee.
+ */
+export function playInstantDelegationSound() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const sequence = [
+      { freq: 783.99, offset: 0, duration: 0.14, type: 'triangle' as OscillatorType },   // G5
+      { freq: 987.77, offset: 0.14, duration: 0.14, type: 'triangle' as OscillatorType }, // B5
+      { freq: 1567.98, offset: 0.28, duration: 0.38, type: 'sine' as OscillatorType },    // G6
+    ];
+
+    sequence.forEach(({ freq, offset, duration, type }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now + offset);
+      gain.gain.setValueAtTime(0.22, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + duration);
+    });
+  } catch (err) {
+    console.warn('Instant delegation sound failed:', err);
+  }
+}
+

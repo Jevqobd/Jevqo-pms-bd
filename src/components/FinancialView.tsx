@@ -75,7 +75,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
             <DollarSign className="w-4 h-4" />
           </div>
           <div className="text-2xl font-black text-gray-900 dark:text-white">
-            ${totalSales.toLocaleString()}
+            ৳{totalSales.toLocaleString()}
           </div>
           <p className="text-[11px] text-gray-500 mt-1">{orders.length} Total orders</p>
         </div>
@@ -86,7 +86,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
             <CreditCard className="w-4 h-4" />
           </div>
           <div className="text-2xl font-black text-emerald-600">
-            ${totalAdvances.toLocaleString()}
+            ৳{totalAdvances.toLocaleString()}
           </div>
           <p className="text-[11px] text-gray-500 mt-1">
             {Math.round((totalAdvances / (totalSales || 1)) * 100)}% payment collected
@@ -99,7 +99,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
             <Receipt className="w-4 h-4" />
           </div>
           <div className="text-2xl font-black text-amber-600">
-            ${totalDue.toLocaleString()}
+            ৳{totalDue.toLocaleString()}
           </div>
           <p className="text-[11px] text-gray-500 mt-1">Receivables upon dispatch</p>
         </div>
@@ -110,7 +110,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
             <TrendingUp className="w-4 h-4" />
           </div>
           <div className="text-2xl font-black text-rose-600">
-            ${totalExpenses.toLocaleString()}
+            ৳{totalExpenses.toLocaleString()}
           </div>
           <p className="text-[11px] text-gray-500 mt-1">Across 3 locations</p>
         </div>
@@ -121,7 +121,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
             <TrendingUp className="w-4 h-4" />
           </div>
           <div className={`text-2xl font-black ${netCashFlow >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
-            ${netCashFlow.toLocaleString()}
+            ৳{netCashFlow.toLocaleString()}
           </div>
           <p className="text-[11px] text-gray-500 mt-1">Collections minus expenses</p>
         </div>
@@ -159,13 +159,13 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                       <strong className="block text-gray-900 dark:text-white">{ord.clientName}</strong>
                       <span className="text-[11px] text-gray-500">{ord.teamOrClub}</span>
                     </td>
-                    <td className="p-3 font-bold">${ord.totalAmount}</td>
-                    <td className="p-3 text-emerald-600 font-semibold">${ord.advanceAmount}</td>
+                    <td className="p-3 font-bold">৳{ord.totalAmount}</td>
+                    <td className="p-3 text-emerald-600 font-semibold">৳{ord.advanceAmount}</td>
                     <td className="p-3 font-bold">
                       {ord.dueAmount > 0 ? (
-                        <span className="text-amber-600">${ord.dueAmount}</span>
+                        <span className="text-amber-600">৳{ord.dueAmount}</span>
                       ) : (
-                        <span className="text-gray-400">$0</span>
+                        <span className="text-gray-400">৳0</span>
                       )}
                     </td>
                     <td className="p-3">
@@ -211,7 +211,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-gray-900 dark:text-white">{exp.title}</span>
-                  <span className="font-black text-rose-600">-${exp.amount}</span>
+                  <span className="font-black text-rose-600">-৳{exp.amount}</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-gray-500">
                   <span className="capitalize">{exp.location.replace('_', ' ')} &bull; {exp.category}</span>
@@ -280,7 +280,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">Amount ($) *</label>
+                <label className="font-semibold block mb-1">Amount (BDT ৳) *</label>
                 <input
                   type="number"
                   required

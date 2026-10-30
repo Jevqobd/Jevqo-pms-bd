@@ -86,14 +86,10 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({ language = '
           <WifiOff className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
           <div>
             <span className="font-black text-amber-200">
-              {language === 'bn'
-                ? 'অফলাইন মোড সক্রিয় (PWA Service Worker Cache)'
-                : 'Offline Mode Active — Serving Cached ERP Assets via Service Worker'}
+              {'Offline Mode Active — Serving Cached ERP Assets via Service Worker'}
             </span>
             <p className="text-[11px] text-amber-300/80">
-              {language === 'bn'
-                ? 'আপনার সকল ফর্ম এন্ট্রি ড্রাফট হিসেবে সংরক্ষিত হচ্ছে এবং ইন্টারনেট ফিরলে সিঙ্ক হবে।'
-                : 'All form entries are auto-saved in local draft storage and will sync automatically when back online.'}
+              {'All form entries are auto-saved in local draft storage and will sync automatically when back online.'}
             </p>
           </div>
         </div>
@@ -115,9 +111,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({ language = '
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-black text-white">
-              {language === 'bn'
-                ? 'অ্যান্ড্রয়েড ও ডেস্কটপ অ্যাপ হিসেবে ইনস্টল করুন'
-                : 'Install Sportswear OS on Android / Desktop'}
+              {'Install Sportswear OS on Android / Desktop'}
             </span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-300 font-mono font-bold flex items-center gap-1">
               <Wifi className="w-2.5 h-2.5" /> PWA Offline Cache {swReady ? 'Active' : 'Ready'}
@@ -128,11 +122,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({ language = '
           </div>
           <p className="text-[11px] text-slate-300 mt-0.5">
             {showManualHelp
-              ? language === 'bn'
-                ? 'অ্যান্ড্রয়েড ক্রোম ব্রাউজারে ডানদিকের ৩-ডট মেনুতে ক্লিক করে "Add to Home screen" বা "Install App" সিলেক্ট করুন।'
-                : 'On Android Chrome: Tap the top-right 3-dot menu and select "Install app" or "Add to Home screen".'
-              : language === 'bn'
-              ? 'মোবাইল হোম স্ক্রিন থেকে ফুল-স্ক্রিন অ্যাপ হিসেবে চালান, অফলাইনে কাজ করুন ও কিউআর স্ক্যানার ব্যবহার করুন।'
+              ? 'On Android Chrome: Tap the top-right 3-dot menu and select "Install app" or "Add to Home screen".'
               : 'Multi-tier service worker caches critical fonts, icons & UI shells for instant mobile speed and offline resilience.'}
           </p>
         </div>
@@ -144,7 +134,7 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({ language = '
           className="btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/50 cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>{language === 'bn' ? 'ইনস্টল' : 'Install App'}</span>
+          <span>{'Install App'}</span>
         </button>
         <button
           onClick={() => setDismissed(true)}

@@ -326,9 +326,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             </span>
             <div>
               <h2 className="text-lg font-black text-white tracking-tight">
-                {language === 'bn'
-                  ? 'ভেন্ডর, সাপ্লায়ার ও পারচেজ অর্ডার (PO/GRN) কমান্ড সেন্টার'
-                  : 'Vendors, Material Suppliers & PO/GRN Procurement Hub'}
+                {'Vendors, Material Suppliers & PO/GRN Procurement Hub'}
               </h2>
               <p className="text-xs text-slate-400">
                 Manage polyester fabric mills, sublimation ink/paper importers, Purchase Orders, and 1-click GRN inventory stock synchronization
@@ -343,7 +341,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             className="btn-press flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold transition cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-400" />
-            <span>{language === 'bn' ? 'নতুন সাপ্লায়ার যোগ করুন' : 'Add Supplier'}</span>
+            <span>{'Add Supplier'}</span>
             {hasVendorDraft && (
               <span className="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/20 text-amber-300 font-mono">
                 Draft
@@ -356,7 +354,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             className="btn-press flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 transition cursor-pointer"
           >
             <FileText className="w-4 h-4" />
-            <span>{language === 'bn' ? 'নতুন পারচেজ অর্ডার (PO)' : 'Issue Purchase Order (PO)'}</span>
+            <span>{'Issue Purchase Order (PO)'}</span>
             {hasPoDraft && (
               <span className="px-1.5 py-0.5 text-[10px] rounded bg-black/30 text-amber-200 font-mono">
                 Draft
@@ -388,7 +386,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             <PackageCheck className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-black text-white font-mono tabular-nums">
-            ${totalActivePoValue.toLocaleString()}
+            ৳{totalActivePoValue.toLocaleString()}
           </div>
           <div className="text-[11px] text-cyan-400 mt-1">
             {purchaseOrders.filter((p) => p.status !== 'received_grn').length} active shipments to Tongi & Mirpur
@@ -414,7 +412,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             <DollarSign className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-black text-amber-400 font-mono tabular-nums">
-            ${totalPayables.toLocaleString()}
+            ৳{totalPayables.toLocaleString()}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
             Rolling 15–30 day mill credit lines
@@ -607,7 +605,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                   <div>
                     <span className="text-slate-400 block text-[10px]">Total Purchased</span>
                     <span className="text-white font-bold">
-                      ${vendor.totalPurchased.toLocaleString()}
+                      ৳{vendor.totalPurchased.toLocaleString()}
                     </span>
                   </div>
                   <div>
@@ -617,7 +615,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                         vendor.balanceDue > 0 ? 'text-amber-400' : 'text-emerald-400'
                       }`}
                     >
-                      ${vendor.balanceDue.toLocaleString()}
+                      ৳{vendor.balanceDue.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -703,7 +701,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                           </span>{' '}
                           × {item.itemName}{' '}
                           <span className="text-slate-400 font-mono">
-                            (${item.unitCost}/{item.unit})
+                            (৳{item.unitCost}/{item.unit})
                           </span>
                         </div>
                       ))}
@@ -723,7 +721,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-white tabular-nums">
-                      ${po.totalAmount.toLocaleString()}
+                      ৳{po.totalAmount.toLocaleString()}
                     </td>
                     <td className="py-3.5 px-4">
                       {po.status === 'received_grn' ? (
@@ -804,7 +802,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                         {isCritical ? 'LOW STOCK ALERT' : 'OPTIMAL BUFFER'}
                       </span>
                       <span className="text-xs font-mono text-slate-400 tabular-nums">
-                        Rate: ${(item.unitCost ?? 2.5).toFixed(2)}/{item.unit}
+                        Rate: ৳{(item.unitCost ?? 2.5).toFixed(2)}/{item.unit}
                       </span>
                     </div>
 
@@ -836,7 +834,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                   >
                     <ArrowUpRight className="w-4 h-4" />
                     <span>
-                      1-Click Issue PO ({recommendedOrderQty} {item.unit} • $
+                      1-Click Issue PO ({recommendedOrderQty} {item.unit} • ৳
                       {(recommendedOrderQty * (item.unitCost ?? 2.5)).toFixed(0)})
                     </span>
                   </button>
@@ -888,13 +886,13 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                       </td>
                       <td className="py-3 px-4 text-slate-300">{entry.description}</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-400">
-                        {entry.debit > 0 ? `$${entry.debit.toLocaleString()}` : '—'}
+                        {entry.debit > 0 ? `৳${entry.debit.toLocaleString()}` : '—'}
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums text-amber-400">
-                        {entry.credit > 0 ? `$${entry.credit.toLocaleString()}` : '—'}
+                        {entry.credit > 0 ? `৳${entry.credit.toLocaleString()}` : '—'}
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold tabular-nums text-white">
-                        ${entry.runningBalance.toLocaleString()}
+                        ৳{entry.runningBalance.toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -1158,7 +1156,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                 >
                   {inventory.map((inv) => (
                     <option key={inv.id} value={inv.id}>
-                      {inv.name} (In stock: {inv.currentStock} {inv.unit} • ${inv.unitCost}/
+                      {inv.name} (In stock: {inv.currentStock} {inv.unit} • ৳{inv.unitCost}/
                       {inv.unit})
                     </option>
                   ))}
@@ -1180,7 +1178,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-400 font-semibold mb-1">
-                    Unit Rate ($)
+                    Unit Rate (BDT ৳)
                   </label>
                   <input
                     type="number"
@@ -1218,7 +1216,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between font-mono">
                 <span className="text-slate-400">Estimated PO Total Value:</span>
                 <span className="text-base font-black text-emerald-400 tabular-nums">
-                  ${(Number(poDraft.quantity || 0) * Number(poDraft.unitCost || 0)).toFixed(2)}
+                  ৳{(Number(poDraft.quantity || 0) * Number(poDraft.unitCost || 0)).toFixed(2)}
                 </span>
               </div>
 
@@ -1324,10 +1322,10 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
                       {item.quantity} {item.unit}
                     </td>
                     <td className="p-2.5 text-right font-mono text-slate-300">
-                      ${item.unitCost.toFixed(2)}
+                      ৳{item.unitCost.toFixed(2)}
                     </td>
                     <td className="p-2.5 text-right font-mono font-bold text-white">
-                      ${item.totalCost.toFixed(2)}
+                      ৳{item.totalCost.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -1337,7 +1335,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             <div className="flex items-center justify-between pt-2 text-sm font-mono">
               <span className="text-slate-400">Total Purchase Order Value:</span>
               <span className="text-xl font-black text-emerald-400">
-                ${printablePo.totalAmount.toLocaleString()}
+                ৳{printablePo.totalAmount.toLocaleString()}
               </span>
             </div>
           </div>
@@ -1361,7 +1359,7 @@ export const VendorsSuppliersModule: React.FC<VendorsSuppliersModuleProps> = ({
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">Amount to Pay ($)</label>
+                <label className="block text-slate-400 mb-1">Amount to Pay (BDT ৳)</label>
                 <input
                   type="number"
                   value={paymentAmount}

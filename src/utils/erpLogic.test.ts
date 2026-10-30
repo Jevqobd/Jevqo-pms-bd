@@ -11,7 +11,14 @@ import {
   canTransitionStage,
   getStageLocation,
   parseRosterInput,
+  calculatePrintConsumptionDefaults,
+  parseBulkDelimitedText,
+  canUserSwitchRole,
+  canUserSendPrivateMessage,
+  canUserViewChatMessage,
+  extractMentionedEmployees,
 } from './erpLogic.ts';
+import { getTranslation, formatBdt } from './translations.ts';
 
 test('calculateOrderTotals accurately computes totals, due balance and status', () => {
   const result = calculateOrderTotals(50, 15, 300, true);
@@ -77,4 +84,122 @@ test('parseRosterInput correctly parses jersey lines into players and size break
   assert.equal(parsed.roster[0].name, 'Lionel Messi');
   assert.equal(parsed.roster[0].number, '10');
   assert.equal(parsed.roster[0].size, 'L');
+});
+
+test('calculatePrintConsumptionDefaults computes meters, fabric kg, heat press, ribbon and collars', () => {
+  const res = calculatePrintConsumptionDefaults(30, 160);
+  assert.equal(res.heatPressJerseyCount, 30);
+  assert.equal(res.collarUsedPcs, 30);
+  assert.equal(res.fabricUsedMeters, 40.5);
+  assert.ok(res.printedMeters > res.fabricUsedMeters);
+  assert.ok(res.fabricUsedKg > 10);
+  assert.equal(res.ribbonUsedMeters, 13.5);
+  assert.ok(res.ribbonUsedKg > 0.3);
+});
+
+test('parseBulkDelimitedText parses CSV and TSV rows accurately for bulk import', () => {
+  const csv = `clientName,teamOrClub,totalQuantity,unitPrice\n"Dhaka Gladiators","Gladiators XI",25,18\n"Chittagong Kings","Kings FC",40,16.5`;
+  const parsed = parseBulkDelimitedText(csv);
+  assert.deepEqual(parsed.headers, ['clientName', 'teamOrClub', 'totalQuantity', 'unitPrice']);
+  assert.equal(parsed.rows.length, 2);
+  assert.equal(parsed.rows[0].clientName, 'Dhaka Gladiators');
+  assert.equal(parsed.rows[1].totalQuantity, '40');
+});
+
+test('canUserSwitchRole strictly allows ONLY Owner and Manager to switch roles', () => {
+  assert.equal(canUserSwitchRole('owner'), true);
+  assert.equal(canUserSwitchRole('hr_manager'), true);
+  assert.equal(canUserSwitchRole('marketing'), false);
+  assert.equal(canUserSwitchRole('accountant'), false);
+  assert.equal(canUserSwitchRole('print_factory'), false);
+  assert.equal(canUserSwitchRole('sewing_factory'), false);
+  assert.equal(canUserSwitchRole('floor_worker'), false);
+});
+
+test('canUserSendPrivateMessage allows Owner, Manager and Department Heads to send private messages', () => {
+  assert.equal(canUserSendPrivateMessage('owner'), true);
+  assert.equal(canUserSendPrivateMessage('hr_manager'), true);
+  assert.equal(canUserSendPrivateMessage('accountant'), true);
+  assert.equal(canUserSendPrivateMessage('floor_worker'), false);
+});
+
+test('canUserViewChatMessage enforces strict privacy for personal/invoice messages', () => {
+  const privateInvoiceMsg = {
+    isPrivate: true,
+    senderEmployeeId: 'emp-1',
+    senderName: 'Ridwanul Haque',
+    recipientEmployeeIds: ['emp-10'],
+    recipientEmployeeNames: ['Tanvir Mahmud'],
+    mentionedEmployeeIds: ['emp-2'],
+    mentionedEmployeeNames: ['Asifur Rahman'],
+    relatedInvoiceAssignedEmployeeId: 'emp-10',
+  };
+
+  // Sender can view
+  assert.equal(
+    canUserViewChatMessage(privateInvoiceMsg, {
+      employeeId: 'emp-1',
+      employeeName: 'Ridwanul Haque',
+      role: 'owner',
+    }),
+    true
+  );
+
+  // Direct recipient can view
+  assert.equal(
+    canUserViewChatMessage(privateInvoiceMsg, {
+      employeeId: 'emp-10',
+      employeeName: 'Tanvir Mahmud',
+      role: 'accountant',
+    }),
+    true
+  );
+
+  // @Mentioned employee can view
+  assert.equal(
+    canUserViewChatMessage(privateInvoiceMsg, {
+      employeeId: 'emp-2',
+      employeeName: 'Asifur Rahman',
+      role: 'marketing',
+    }),
+    true
+  );
+
+  // Unrelated employee MUST NOT view private personal/invoice message
+  assert.equal(
+    canUserViewChatMessage(privateInvoiceMsg, {
+      employeeId: 'emp-6',
+      employeeName: 'Kabir Hossain',
+      role: 'floor_worker',
+    }),
+    false
+  );
+  assert.equal(
+    canUserViewChatMessage(privateInvoiceMsg, {
+      employeeId: 'emp-7',
+      employeeName: 'Selim Mia',
+      role: 'sewing_factory',
+    }),
+    false
+  );
+});
+
+test('extractMentionedEmployees resolves @Employee_Name tokens to staff IDs and names', () => {
+  const roster = [
+    { id: 'emp-1', name: 'Ridwanul Haque' },
+    { id: 'emp-10', name: 'Tanvir Mahmud' },
+    { id: 'emp-5', name: 'Mizanur Rahman' },
+  ];
+  const res = extractMentionedEmployees(
+    'Please check invoice #INV-2026-891 @Tanvir_Mahmud and confirm print roll with @Mizanur_Rahman',
+    roster
+  );
+  assert.deepEqual(res.map((e) => e.id), ['emp-10', 'emp-5']);
+  assert.deepEqual(res.map((e) => e.name), ['Tanvir Mahmud', 'Mizanur Rahman']);
+});
+
+test('getTranslation returns strictly clean English and formatBdt formats in BDT (৳)', () => {
+  assert.equal(getTranslation('navDashboardTasks', 'en'), 'Dashboard & Tasks');
+  assert.equal(getTranslation('navDashboardTasks', 'bn'), 'Dashboard & Tasks');
+  assert.equal(formatBdt(12500), '৳12,500');
 });

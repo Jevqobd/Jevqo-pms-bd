@@ -177,10 +177,10 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                {language === 'bn' ? 'সক্রিয় কন্ট্রোল রুম' : 'LIVE CONTROL ROOM'}
+                {'LIVE CONTROL ROOM'}
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {new Date().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', {
+                {new Date().toLocaleDateString('en-US', {
                   weekday: 'short',
                   year: 'numeric',
                   month: 'short',
@@ -195,9 +195,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
               </span>
             </h1>
             <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              {language === 'bn'
-                ? 'এন্টারপ্রাইজ স্পোর্টসওয়্যার প্রোডাকশন পাইপলাইন ও ডিপার্টমেন্টাল টাস্ক কন্ট্রোল হাব।'
-                : 'Centralized manufacturing execution and real-time handoff between Banani HQ, Tongi Mill, and Mirpur Sewing Factory.'}
+              {'Centralized manufacturing execution and real-time handoff between Banani HQ, Tongi Mill, and Mirpur Sewing Factory.'}
             </p>
           </div>
 
@@ -224,7 +222,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
               className="btn-press flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 cursor-pointer"
             >
               <Users className="w-4 h-4 text-teal-400" />
-              <span>{language === 'bn' ? 'ম্যানেজার হাজিরা' : 'Dept Attendance'}</span>
+              <span>{'Dept Attendance'}</span>
             </button>
           </div>
         </div>
@@ -243,13 +241,11 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
                   {getTranslation('shortageAlertBanner', language)}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-bounce">
-                  {openShortages.length} {language === 'bn' ? 'টি টিকিট' : 'Tickets'}
+                  {openShortages.length} {'Tickets'}
                 </span>
               </div>
               <p className="text-xs text-rose-300/80">
-                {language === 'bn'
-                  ? 'সুইং লাইনে কাপড় কাটার ত্রুটি বা নষ্ট পার্টসের জন্য অবিলম্বে টঙ্গী মিলে সাবলিমেশন রি-প্রিন্ট প্রয়োজন।'
-                  : 'Sewing floor raised urgent re-print tickets for ruined pattern pieces (collar/sleeves/front panels). Expedited print needed.'}
+                {'Sewing floor raised urgent re-print tickets for ruined pattern pieces (collar/sleeves/front panels). Expedited print needed.'}
               </p>
             </div>
           </div>
@@ -257,7 +253,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             onClick={onOpenShortages}
             className="btn-press px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 cursor-pointer flex items-center gap-1.5"
           >
-            <span>{language === 'bn' ? 'রি-প্রিন্ট কিউ দেখুন' : 'View Re-Print Queue'}</span>
+            <span>{'View Re-Print Queue'}</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -277,7 +273,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             {orders.length}
           </div>
           <p className="text-[11px] text-slate-400">
-            {language === 'bn' ? 'চলমান সমস্ত জব কার্ড' : 'Across Banani, Tongi & Mirpur'}
+            {'Across Banani, Tongi & Mirpur'}
           </p>
         </div>
 
@@ -285,7 +281,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
         <div className="card-hover bg-slate-900/90 border border-slate-800/80 p-4 rounded-2xl space-y-2">
           <div className="flex items-center justify-between text-slate-400 text-xs">
             <span className="font-semibold uppercase tracking-wider">
-              {language === 'bn' ? 'আমার দায়িত্বে অপেক্ষমাণ' : 'Pending in My Dept'}
+              {'Pending in My Dept'}
             </span>
             <Clock className="w-4 h-4 text-amber-400" />
           </div>
@@ -293,7 +289,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             {pendingOrders.length}
           </div>
           <p className="text-[11px] text-slate-400">
-            {language === 'bn' ? 'তাৎক্ষণিক করণীয় কাজ' : 'Immediate handoff actions'}
+            {'Immediate handoff actions'}
           </p>
         </div>
 
@@ -309,7 +305,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             {openShortages.length}
           </div>
           <p className="text-[11px] text-slate-400">
-            {language === 'bn' ? 'কারখানা রি-প্রিন্ট প্রয়োজন' : 'Expedited floor tickets'}
+            {'Expedited floor tickets'}
           </p>
         </div>
 
@@ -325,7 +321,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
             {presentCount}
           </div>
           <p className="text-[11px] text-slate-400">
-            {language === 'bn' ? 'আজ উপস্থিত কর্মী সংখ্যা' : 'Operators & staff clocked in'}
+            {'Operators & staff clocked in'}
           </p>
         </div>
       </div>
@@ -360,9 +356,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
               {getTranslation('noPendingTasks', language)}
             </h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              {language === 'bn'
-                ? 'আপনার বিভাগের সকল অর্ডার যথাসময়ে সম্পন্ন হয়েছে। পাইপলাইনের নতুন আপডেটের জন্য অপেক্ষা করুন।'
-                : 'No pending orders waiting for your department handoff right now. Great job keeping the line moving!'}
+              {'No pending orders waiting for your department handoff right now. Great job keeping the line moving!'}
             </p>
           </div>
         ) : (
@@ -388,7 +382,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
                           {order.teamOrClub || order.clientName}
                         </h3>
                         <span className="text-[11px] text-slate-400">
-                          {order.clientName} • {order.totalQuantity} {language === 'bn' ? 'পিস' : 'pcs'}
+                          {order.clientName} • {order.totalQuantity} {'pcs'}
                         </span>
                       </div>
 
@@ -401,7 +395,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
                     <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/60 text-xs text-slate-300 space-y-1">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         <Clock className="w-3 h-3 text-amber-400" />
-                        <span>{language === 'bn' ? 'বর্তমান ধাপ বিবরণ' : 'Current Stage Details'}</span>
+                        <span>{'Current Stage Details'}</span>
                       </div>
                       <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
                         {stageInfo.desc}
@@ -425,7 +419,7 @@ export const DashboardAndTasksView: React.FC<DashboardAndTasksViewProps> = ({
                       >
                         <Zap className="w-3.5 h-3.5" />
                         <span>
-                          {language === 'bn' ? 'পরবর্তী ধাপে নিন' : 'Advance'}: {nextStageInfo.nextStepName}
+                          {'Advance'}: {nextStageInfo.nextStepName}
                         </span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>

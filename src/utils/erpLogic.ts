@@ -325,3 +325,250 @@ export function parseRosterInput(text: string): {
 
   return { roster, sizeBreakdown };
 }
+
+/**
+ * Computes default Print Factory consumption metrics for a jersey order:
+ * - printedMeters: sublimation paper meters printed
+ * - fabricUsedMeters: fabric roll meters used
+ * - fabricUsedKg: fabric weight in KGs based on GSM & 1.6m roll width
+ * - heatPressJerseyCount: number of jersey pieces heat-pressed
+ * - ribbonUsedMeters & ribbonUsedKg: neck tape / lanyard ribbon consumption
+ * - collarUsedPcs: collar rib pieces used
+ */
+export function calculatePrintConsumptionDefaults(
+  totalQuantity: number,
+  gsm: number = 160
+): {
+  printedMeters: number;
+  fabricUsedMeters: number;
+  fabricUsedKg: number;
+  heatPressJerseyCount: number;
+  ribbonUsedMeters: number;
+  ribbonUsedKg: number;
+  collarUsedPcs: number;
+} {
+  const qty = Math.max(0, Number(totalQuantity) || 0);
+  const effectiveGsm = Math.max(100, Number(gsm) || 160);
+  const fabricUsedMeters = Number((qty * 1.35).toFixed(2));
+  const printedMeters = Number((fabricUsedMeters * 1.04).toFixed(2));
+  // 1.6m roll width * gsm / 1000 = kg per linear meter
+  const kgPerMeter = (1.6 * effectiveGsm) / 1000;
+  const fabricUsedKg = Number((fabricUsedMeters * kgPerMeter).toFixed(2));
+  const heatPressJerseyCount = qty;
+  const ribbonUsedMeters = Number((qty * 0.45).toFixed(2));
+  const ribbonUsedKg = Number((ribbonUsedMeters * 0.03).toFixed(2));
+  const collarUsedPcs = qty;
+
+  return {
+    printedMeters,
+    fabricUsedMeters,
+    fabricUsedKg,
+    heatPressJerseyCount,
+    ribbonUsedMeters,
+    ribbonUsedKg,
+    collarUsedPcs,
+  };
+}
+
+/**
+ * Parses CSV, TSV, or pipe-separated text for bulk offline-to-online data migration.
+ */
+export function parseBulkDelimitedText(rawText: string): {
+  headers: string[];
+  rows: Record<string, string>[];
+} {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length === 0) {
+    return { headers: [], rows: [] };
+  }
+
+  const firstLine = lines[0];
+  const delimiter = firstLine.includes('\t')
+    ? '\t'
+    : firstLine.includes('|')
+    ? '|'
+    : ',';
+
+  const splitLine = (line: string): string[] =>
+    line
+      .split(delimiter)
+      .map((cell) => cell.trim().replace(/^["']|["']$/g, ''));
+
+  const headers = splitLine(firstLine);
+  const rows: Record<string, string>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = splitLine(lines[i]);
+    if (values.every((v) => !v)) continue;
+    const record: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      record[h] = values[idx] !== undefined ? values[idx] : '';
+    });
+    rows.push(record);
+  }
+
+  return { headers, rows };
+}
+
+/**
+ * Determines if the logged-in user account is permitted to switch active ERP roles.
+ * Rule: ONLY Owner ('owner') or Manager ('hr_manager' / General Manager) can switch roles.
+ * Other users are locked to their assigned role.
+ */
+export function canUserSwitchRole(
+  accountRole: UserRole,
+  isManagerOverride?: boolean
+): boolean {
+  if (typeof isManagerOverride === 'boolean') {
+    return isManagerOverride;
+  }
+  return accountRole === 'owner' || accountRole === 'hr_manager';
+}
+
+/**
+ * Determines if a user can initiate a private personal/invoice message to any employee.
+ * Rule: Owner, Manager, and Department Heads can send personal messages related to invoices/orders.
+ */
+export function canUserSendPrivateMessage(role: UserRole): boolean {
+  return role !== 'floor_worker';
+}
+
+export interface ChatVisibilityMessage {
+  isPrivate?: boolean;
+  senderId?: string;
+  senderEmployeeId?: string;
+  senderName?: string;
+  recipientEmployeeIds?: string[];
+  recipientEmployeeNames?: string[];
+  taggedEmployees?: string[];
+  mentionedEmployeeIds?: string[];
+  mentionedEmployeeNames?: string[];
+  relatedInvoiceAssignedEmployeeId?: string;
+}
+
+export interface ChatViewerIdentity {
+  id?: string;
+  employeeId?: string;
+  name?: string;
+  employeeName?: string;
+  role: UserRole;
+}
+
+/**
+ * Enforces privacy for personal / invoice-related messages in Live Chat.
+ * If `isPrivate` is true, ONLY the sender, the direct recipient(s), the @mentioned person(s),
+ * or the employee assigned to the related invoice can view the message.
+ */
+export function canUserViewChatMessage(
+  msg: ChatVisibilityMessage,
+  viewer: ChatViewerIdentity
+): boolean {
+  if (!msg.isPrivate) return true;
+  const resolvedName = viewer?.name || viewer?.employeeName || '';
+  const resolvedId = viewer?.id || viewer?.employeeId || '';
+  if (!viewer || (!resolvedName && !resolvedId)) return false;
+
+  const viewerNameLower = resolvedName.trim().toLowerCase();
+  const viewerFirstLower = viewerNameLower.split(/\s+/)[0];
+  const viewerSlugLower = viewerNameLower.replace(/\s+/g, '_');
+
+  // 1. Sender can always see their own sent message
+  const msgSenderId = msg.senderId || msg.senderEmployeeId;
+  if (
+    (msgSenderId && (msgSenderId === viewer.id || msgSenderId === viewer.employeeId)) ||
+    (msg.senderName && viewerNameLower && msg.senderName.trim().toLowerCase() === viewerNameLower)
+  ) {
+    return true;
+  }
+
+  // 2. Direct recipient by ID
+  if (
+    msg.recipientEmployeeIds &&
+    msg.recipientEmployeeIds.some(
+      (rid) => rid === viewer.id || (viewer.employeeId && rid === viewer.employeeId)
+    )
+  ) {
+    return true;
+  }
+
+  // 3. Direct recipient by Name
+  if (
+    msg.recipientEmployeeNames &&
+    viewerNameLower &&
+    msg.recipientEmployeeNames.some((rName) => {
+      const clean = rName.trim().toLowerCase();
+      return clean === viewerNameLower || clean === viewerFirstLower;
+    })
+  ) {
+    return true;
+  }
+
+  // 4. Mentioned via @Mention tag or mentionedEmployeeIds/mentionedEmployeeNames
+  if (
+    msg.mentionedEmployeeIds &&
+    msg.mentionedEmployeeIds.some(
+      (mid) => mid === viewer.id || (viewer.employeeId && mid === viewer.employeeId)
+    )
+  ) {
+    return true;
+  }
+
+  const allMentionNames = [
+    ...(msg.taggedEmployees || []),
+    ...(msg.mentionedEmployeeNames || []),
+  ];
+  if (
+    allMentionNames.length > 0 &&
+    allMentionNames.some((tag) => {
+      const cleanTag = tag.replace(/^@/, '').trim().toLowerCase();
+      return (
+        (viewerNameLower &&
+          (cleanTag === viewerNameLower ||
+            cleanTag === viewerFirstLower ||
+            cleanTag === viewerSlugLower)) ||
+        (resolvedId && cleanTag === resolvedId.toLowerCase()) ||
+        (viewer.employeeId && cleanTag === viewer.employeeId.toLowerCase())
+      );
+    })
+  ) {
+    return true;
+  }
+
+  // 5. Related employee assigned on the referenced invoice
+  if (
+    msg.relatedInvoiceAssignedEmployeeId &&
+    (msg.relatedInvoiceAssignedEmployeeId === viewer.id ||
+      msg.relatedInvoiceAssignedEmployeeId === viewer.employeeId)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Extracts @mentioned employees from message text.
+ */
+export function extractMentionedEmployees<T extends { id: string; name: string }>(
+  text: string,
+  employees: T[]
+): T[] {
+  if (!text || !employees?.length) return [];
+  const lowerText = text.toLowerCase();
+  return employees.filter((emp) => {
+    const fullLower = emp.name.trim().toLowerCase();
+    const firstLower = fullLower.split(/\s+/)[0];
+    const slugLower = fullLower.replace(/\s+/g, '_');
+    return (
+      lowerText.includes(`@${fullLower}`) ||
+      lowerText.includes(`@${slugLower}`) ||
+      lowerText.includes(`@${firstLower}`)
+    );
+  });
+}
+
+

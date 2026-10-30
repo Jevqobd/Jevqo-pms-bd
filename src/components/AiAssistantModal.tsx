@@ -20,13 +20,13 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   onClose,
   orders,
 }) => {
-  if (!isOpen) return null;
-
   const [inputPrompt, setInputPrompt] = useState('');
   const [selectedOrderNumber, setSelectedOrderNumber] = useState(orders[0]?.orderNumber || '');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiProductionAnalysisResult | null>(null);
   const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
 
   const activeOrder = orders.find((o) => o.orderNumber === selectedOrderNumber) || orders[0];
 
