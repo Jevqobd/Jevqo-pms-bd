@@ -3,14 +3,13 @@
  * Strategies:
  * 1. App Shell Pre-Caching (instant boot offline)
  * 2. Cache-First for Google Fonts & Immutable Vendor Assets
- * 3. Stale-While-Revalidate for UI Scripts, Stylesheets, Icons & Mockup Images
- * 4. Network-First with Offline Cache Fallback for SPA Navigation & GET Requests
+ * 3. Network-First for Application Source & Scripts (ensuring live updates with offline fallback)
  */
 
-const SHELL_CACHE = 'sportswear-erp-shell-v2';
-const ASSETS_CACHE = 'sportswear-erp-assets-v2';
-const IMAGES_CACHE = 'sportswear-erp-images-v2';
-const FONTS_CACHE = 'sportswear-erp-fonts-v2';
+const SHELL_CACHE = 'sportswear-erp-shell-v4';
+const ASSETS_CACHE = 'sportswear-erp-assets-v4';
+const IMAGES_CACHE = 'sportswear-erp-images-v4';
+const FONTS_CACHE = 'sportswear-erp-fonts-v4';
 
 const ALL_CACHES = [SHELL_CACHE, ASSETS_CACHE, IMAGES_CACHE, FONTS_CACHE];
 
@@ -46,14 +45,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Listen for client commands (e.g. force update or clear cache)
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// Helper: Stale-While-Revalidate
+// Helper: Stale-While-Revalidate (for static images/icons)
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cachedResponse = await cache.match(request);
@@ -70,7 +68,7 @@ async function staleWhileRevalidate(request, cacheName) {
   return cachedResponse || networkFetch;
 }
 
-// Helper: Cache-First with Network Fallback
+// Helper: Cache-First with Network Fallback (for immutable fonts)
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cachedResponse = await cache.match(request);
@@ -88,7 +86,7 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
-// Helper: Network-First with Offline Fallback
+// Helper: Network-First with Offline Fallback (always fresh when online, cached when offline)
 async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
@@ -112,7 +110,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Skip WebSockets, Firestore live streams, and POST/API mutations
+  // Skip WebSockets, Firestore live streams, and API mutations
   if (
     url.protocol === 'ws:' ||
     url.protocol === 'wss:' ||
@@ -132,7 +130,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Images (Unsplash mockups, icons, SVGs, PNGs) -> Stale-While-Revalidate
+  // 2. Images -> Stale-While-Revalidate
   if (
     event.request.destination === 'image' ||
     url.hostname.includes('images.unsplash.com') ||
@@ -142,16 +140,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. JS, CSS, TSX, Fonts -> Stale-While-Revalidate for fast mobile loads
-  if (
-    event.request.destination === 'script' ||
-    event.request.destination === 'style' ||
-    /\.(js|css|woff2?)$/i.test(url.pathname)
-  ) {
-    event.respondWith(staleWhileRevalidate(event.request, ASSETS_CACHE));
-    return;
-  }
-
-  // 4. HTML Navigation & App Shell -> Network First with Offline Shell Fallback
-  event.respondWith(networkFirst(event.request, SHELL_CACHE));
+  // 3. Scripts, Styles & Navigation -> Network-First with Offline Cache Fallback
+  event.respondWith(networkFirst(event.request, ASSETS_CACHE));
 });

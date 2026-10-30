@@ -27,11 +27,28 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => {
+            if (!key.endsWith('-v4')) {
+              caches.delete(key);
+            }
+          });
+        });
+      }
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.log('SW registration skipped in preview iframe:', err);
-          });
+          navigator.serviceWorker
+            .register('/sw.js?v=4')
+            .then((reg) => {
+              reg.update();
+              if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
+            })
+            .catch((err) => {
+              console.log('SW registration skipped in preview iframe:', err);
+            });
         });
       }
     </script>
