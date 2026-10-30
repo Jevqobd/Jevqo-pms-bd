@@ -81,12 +81,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <Shirt className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-black tracking-wider uppercase text-white">
                 SPORTSWEAR OS • ENTERPRISE ERP
               </span>
               <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono font-bold">
-                ৳ BDT
+                v4.2.0 • ৳ BDT
+              </span>
+              <span
+                data-testid="login-verified-badge"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/25 via-teal-500/25 to-indigo-500/25 border border-emerald-400/50 text-emerald-200 font-black text-[10px]"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>VERIFIED • Certified by Gemini & Ibrahim Khalil</span>
               </span>
             </div>
             <p className="text-[11px] text-slate-400">

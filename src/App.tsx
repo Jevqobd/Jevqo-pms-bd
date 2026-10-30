@@ -65,7 +65,11 @@ import { ManagersPortal } from './components/ManagersPortal';
 import { EmployeePortal } from './components/EmployeePortal';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { BulkImportModule } from './components/BulkImportModal';
-import { SoftwareAuthorizedInfoCard } from './components/SoftwareAuthorizedInfoCard';
+import {
+  SoftwareAuthorizedInfoCard,
+  SystemCertificationModal,
+  ERP_VERSION,
+} from './components/SoftwareAuthorizedInfoCard';
 import { PrintFactoryView } from './components/PrintFactoryView';
 import { SewingFactoryView } from './components/SewingFactoryView';
 import { HeadOfficeView } from './components/HeadOfficeView';
@@ -257,6 +261,7 @@ export default function App() {
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isB2bPortalOpen, setIsB2bPortalOpen] = useState(false);
+  const [isCertificationModalOpen, setIsCertificationModalOpen] = useState(false);
 
   // Status & Audio Delegation Alerts
   const [toastBanner, setToastBanner] = useState<{
@@ -1098,8 +1103,23 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right: Header Notification Bell, Task Delegate Quick Button, Chat, Role Switcher & Logout */}
+          {/* Right: Verified Badge, Header Notification Bell, Task Delegate Quick Button, Chat, Role Switcher & Logout */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Verified Badge: Certified by Gemini & Ibrahim Khalil */}
+            <button
+              type="button"
+              data-testid="header-verified-badge-btn"
+              onClick={() => setIsCertificationModalOpen(true)}
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/90 via-teal-950/90 to-indigo-950/90 hover:from-emerald-900 hover:to-indigo-900 border border-emerald-400/50 text-[11px] font-black text-emerald-200 whitespace-nowrap shrink-0 cursor-pointer shadow-sm transition"
+              title="Click to view Official System Certification & Full ERP Video Review"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>VERIFIED • Certified by Gemini & Ibrahim Khalil</span>
+              <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[9px] font-bold">
+                v4.2.0
+              </span>
+            </button>
+
             {/* BDT Currency Indicator */}
             <span className="hidden xl:inline-flex items-center px-2 py-1 rounded-xl bg-emerald-950/70 border border-emerald-500/30 text-[11px] font-mono font-black text-emerald-300 whitespace-nowrap shrink-0">
               ৳ BDT
@@ -1692,11 +1712,20 @@ export default function App() {
           )}
 
           {/* Official Software Authorized Info Footer */}
-          <SoftwareAuthorizedInfoCard variant="footer" />
+          <SoftwareAuthorizedInfoCard
+            variant="footer"
+            onOpenCertificationModal={() => setIsCertificationModalOpen(true)}
+          />
         </main>
       </div>
 
       {/* 3. Global Modals & Interactive Overlays */}
+      <SystemCertificationModal
+        isOpen={isCertificationModalOpen}
+        onClose={() => setIsCertificationModalOpen(false)}
+        onNavigateTab={(tab) => setActiveTab(tab as any)}
+      />
+
       <TaskDelegationPopupModal
         task={activeDelegatedPopupTask}
         onClose={() => setActiveDelegatedPopupTask(null)}
