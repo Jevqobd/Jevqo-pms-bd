@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Order, ShortageTicket, FactoryLocation } from '../types/erp';
 import { Language } from '../utils/translations';
 import { Building2, Printer, Scissors, Truck, AlertOctagon, DollarSign, Clock } from 'lucide-react';
@@ -23,15 +23,33 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   selectedLocation,
   language = 'en',
 }) => {
-  const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
-  const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
-  const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
-  const dispatchedOrders = orders.filter((o) => o.currentLocation === 'dispatched');
-  const openShortages = shortageTickets.filter((t) => t.status !== 'resolved');
+  // Memoize computationally heavy filter and reduce operations to avoid unnecessary
+  // recalculations on every render, especially when just switching location tabs or languages.
+  // Impact: Reduces CPU time during location/language toggling by caching array traversals.
+  const {
+    headOfficeOrders,
+    printFactoryOrders,
+    sewingFactoryOrders,
+    dispatchedOrders,
+    totalSales,
+    totalAdvances,
+    totalDue
+  } = useMemo(() => {
+    return {
+      headOfficeOrders: orders.filter((o) => o.currentLocation === 'head_office'),
+      printFactoryOrders: orders.filter((o) => o.currentLocation === 'print_factory'),
+      sewingFactoryOrders: orders.filter((o) => o.currentLocation === 'sewing_factory'),
+      dispatchedOrders: orders.filter((o) => o.currentLocation === 'dispatched'),
+      totalSales: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      totalAdvances: orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0),
+      totalDue: orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0)
+    };
+  }, [orders]);
 
-  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalAdvances = orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
-  const totalDue = orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0);
+  const openShortages = useMemo(
+    () => shortageTickets.filter((t) => t.status !== 'resolved'),
+    [shortageTickets]
+  );
 
   return (
     <div className="space-y-4">
