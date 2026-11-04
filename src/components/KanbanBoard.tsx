@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Order, UserRole, FactoryLocation, OrderStage } from '../types/erp';
 import {
   Building2,
@@ -86,23 +86,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSport, setFilterSport] = useState('all');
 
+  // ⚡ Bolt: Memoized the filtered orders array to prevent recalculating string matching and filters on every render
   // Filter orders by location selection, search, sport
-  const filteredOrders = orders.filter((order) => {
-    if (selectedLocation !== 'all') {
-      if (order.currentLocation !== selectedLocation) return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchNum = order.orderNumber.toLowerCase().includes(q);
-      const matchClient = order.clientName.toLowerCase().includes(q);
-      const matchTeam = (order.teamOrClub || '').toLowerCase().includes(q);
-      if (!matchNum && !matchClient && !matchTeam) return false;
-    }
-    if (filterSport !== 'all' && order.sportType !== filterSport) {
-      return false;
-    }
-    return true;
-  });
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      if (selectedLocation !== 'all') {
+        if (order.currentLocation !== selectedLocation) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchNum = order.orderNumber.toLowerCase().includes(q);
+        const matchClient = order.clientName.toLowerCase().includes(q);
+        const matchTeam = (order.teamOrClub || '').toLowerCase().includes(q);
+        if (!matchNum && !matchClient && !matchTeam) return false;
+      }
+      if (filterSport !== 'all' && order.sportType !== filterSport) {
+        return false;
+      }
+      return true;
+    });
+  }, [orders, selectedLocation, searchQuery, filterSport]);
 
   const getStageBadge = (stage: OrderStage) => {
     switch (stage) {
