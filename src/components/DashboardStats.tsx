@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Order, ShortageTicket, FactoryLocation } from '../types/erp';
 import { Language } from '../utils/translations';
 import { Building2, Printer, Scissors, Truck, AlertOctagon, DollarSign, Clock } from 'lucide-react';
@@ -23,15 +23,40 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   selectedLocation,
   language = 'en',
 }) => {
-  const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
-  const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
-  const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
-  const dispatchedOrders = orders.filter((o) => o.currentLocation === 'dispatched');
-  const openShortages = shortageTickets.filter((t) => t.status !== 'resolved');
+  // ⚡ Bolt Optimization: Replace 7 separate array iterations (4 filters, 3 reduces) with a single pass O(n) iteration.
+  // Memoize the result to prevent unnecessary recalculations on re-renders caused by unrelated props (e.g., selectedLocation).
+  const orderStats = useMemo(() => {
+    let headOfficeCount = 0;
+    let printFactoryCount = 0;
+    let sewingFactoryCount = 0;
+    let dispatchedCount = 0;
+    let totalSales = 0;
+    let totalAdvances = 0;
+    let totalDue = 0;
 
-  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalAdvances = orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
-  const totalDue = orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0);
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      if (o.currentLocation === 'head_office') headOfficeCount++;
+      else if (o.currentLocation === 'print_factory') printFactoryCount++;
+      else if (o.currentLocation === 'sewing_factory') sewingFactoryCount++;
+      else if (o.currentLocation === 'dispatched') dispatchedCount++;
+
+      totalSales += (o.totalAmount || 0);
+      totalAdvances += (o.advanceAmount || 0);
+      totalDue += (o.dueAmount || 0);
+    }
+
+    return { headOfficeCount, printFactoryCount, sewingFactoryCount, dispatchedCount, totalSales, totalAdvances, totalDue };
+  }, [orders]);
+
+  // ⚡ Bolt Optimization: Memoize open shortage ticket count.
+  const openShortagesCount = useMemo(() => {
+    let count = 0;
+    for (let i = 0; i < shortageTickets.length; i++) {
+      if (shortageTickets[i].status !== 'resolved') count++;
+    }
+    return count;
+  }, [shortageTickets]);
 
   return (
     <div className="space-y-4">
@@ -54,7 +79,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {headOfficeOrders.length}
+              {orderStats.headOfficeCount}
             </span>
             <span className="text-xs text-slate-400">{'orders'}</span>
           </div>
@@ -80,7 +105,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {printFactoryOrders.length}
+              {orderStats.printFactoryCount}
             </span>
             <span className="text-xs text-slate-400">{'in production'}</span>
           </div>
@@ -106,7 +131,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {dispatchedOrders.length}
+              {orderStats.dispatchedCount}
             </span>
             <span className="text-xs text-slate-400">{'rolls on van'}</span>
           </div>
@@ -132,7 +157,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {sewingFactoryOrders.length}
+              {orderStats.sewingFactoryCount}
             </span>
             <span className="text-xs text-slate-400">{'at lines'}</span>
           </div>
@@ -154,12 +179,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Total Pipeline Sales'}
               </div>
               <div className="text-base font-black text-white font-mono">
-                ৳{totalSales.toLocaleString()}
+                ৳{orderStats.totalSales.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
-            <span className="text-emerald-400 font-bold font-mono">৳{totalAdvances.toLocaleString()}</span>
+            <span className="text-emerald-400 font-bold font-mono">৳{orderStats.totalAdvances.toLocaleString()}</span>
             <span className="text-slate-400 block text-[10px]">{'collected'}</span>
           </div>
         </div>
@@ -174,26 +199,26 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Due Before Delivery'}
               </div>
               <div className="text-base font-black text-white font-mono">
-                ৳{totalDue.toLocaleString()}
+                ৳{orderStats.totalDue.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
             <span className="text-amber-400 font-bold font-mono">
-              {Math.round((totalAdvances / (totalSales || 1)) * 100)}%
+              {Math.round((orderStats.totalAdvances / (orderStats.totalSales || 1)) * 100)}%
             </span>
             <span className="text-slate-400 block text-[10px]">{'paid ratio'}</span>
           </div>
         </div>
 
         <div className={`card-hover flex items-center justify-between p-3.5 rounded-2xl border shadow-lg transition-all ${
-          openShortages.length > 0
+          openShortagesCount > 0
             ? 'bg-rose-950/30 border-rose-800 text-rose-200'
             : 'bg-slate-900/90 border-slate-800 text-slate-300'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${
-              openShortages.length > 0 ? 'bg-rose-900/60 text-rose-400 border border-rose-700' : 'bg-slate-800 text-slate-400'
+              openShortagesCount > 0 ? 'bg-rose-900/60 text-rose-400 border border-rose-700' : 'bg-slate-800 text-slate-400'
             }`}>
               <AlertOctagon className="w-4 h-4" />
             </div>
@@ -202,14 +227,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Active Re-print Loop'}
               </div>
               <div className="text-base font-black font-mono">
-                {openShortages.length} {`Shortage Ticket${openShortages.length !== 1 ? 's' : ''}`}
+                {openShortagesCount} {`Shortage Ticket${openShortagesCount !== 1 ? 's' : ''}`}
               </div>
             </div>
           </div>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${
-            openShortages.length > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
+            openShortagesCount > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}>
-            {openShortages.length > 0 ? ('Priority Alert') : ('No defects')}
+            {openShortagesCount > 0 ? ('Priority Alert') : ('No defects')}
           </span>
         </div>
       </div>
