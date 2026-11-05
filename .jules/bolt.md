@@ -1,0 +1,3 @@
+## 2025-05-18 - DashboardStats Multiple Array Iterations Optimization
+ **Learning:** I found a component, `DashboardStats`, that was iterating through the `orders` array 7 times (4 filters, 3 reduces) on every render. Because these were directly in the component body, it meant recalculating these values and taking O(7N) time on every render, even when unrelated props like `selectedLocation` changed.
+ **Action:** Replaced the 7 array operations with a single-pass O(N) loop inside a `useMemo` block. This reduces time complexity, avoids redundant recalculations, and serves as a good reminder to look out for multiple array operations in the render path.
