@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Order, ShortageTicket, FactoryLocation } from '../types/erp';
 import { Language } from '../utils/translations';
 import { Building2, Printer, Scissors, Truck, AlertOctagon, DollarSign, Clock } from 'lucide-react';
@@ -16,22 +16,26 @@ interface DashboardStatsProps {
   language?: Language;
 }
 
-export const DashboardStats: React.FC<DashboardStatsProps> = ({
+export const DashboardStats: React.FC<DashboardStatsProps> = React.memo(({
   orders,
   shortageTickets,
   onSelectLocation,
   selectedLocation,
   language = 'en',
 }) => {
-  const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
-  const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
-  const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
-  const dispatchedOrders = orders.filter((o) => o.currentLocation === 'dispatched');
-  const openShortages = shortageTickets.filter((t) => t.status !== 'resolved');
+  // ⚡ Bolt: Memoized array filtering to prevent recalculation on every render
+  const headOfficeOrders = useMemo(() => orders.filter((o) => o.currentLocation === 'head_office'), [orders]);
+  const printFactoryOrders = useMemo(() => orders.filter((o) => o.currentLocation === 'print_factory'), [orders]);
+  const sewingFactoryOrders = useMemo(() => orders.filter((o) => o.currentLocation === 'sewing_factory'), [orders]);
+  const dispatchedOrders = useMemo(() => orders.filter((o) => o.currentLocation === 'dispatched'), [orders]);
 
-  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalAdvances = orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
-  const totalDue = orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0);
+  // ⚡ Bolt: Memoized array filtering for shortage tickets
+  const openShortages = useMemo(() => shortageTickets.filter((t) => t.status !== 'resolved'), [shortageTickets]);
+
+  // ⚡ Bolt: Memoized financial calculations to avoid O(N) operations on re-renders
+  const totalSales = useMemo(() => orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0), [orders]);
+  const totalAdvances = useMemo(() => orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0), [orders]);
+  const totalDue = useMemo(() => orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0), [orders]);
 
   return (
     <div className="space-y-4">
@@ -215,4 +219,4 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       </div>
     </div>
   );
-};
+});
