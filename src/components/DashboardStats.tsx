@@ -16,13 +16,17 @@ interface DashboardStatsProps {
   language?: Language;
 }
 
-export const DashboardStats: React.FC<DashboardStatsProps> = ({
+// ⚡ Bolt Performance Optimization:
+// Wrapped DashboardStats in React.memo() to prevent unnecessary re-renders of the stats cards
+// when sibling elements in the parent component update and props haven't changed.
+// Expected impact: Reduces layout calculation time during state updates in active tabs.
+export const DashboardStats = React.memo(({
   orders,
   shortageTickets,
   onSelectLocation,
   selectedLocation,
   language = 'en',
-}) => {
+}: DashboardStatsProps) => {
   const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
   const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
   const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
@@ -215,4 +219,4 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       </div>
     </div>
   );
-};
+});

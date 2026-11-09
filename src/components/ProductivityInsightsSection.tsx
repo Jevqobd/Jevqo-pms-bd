@@ -38,10 +38,14 @@ interface ProductivityInsightsSectionProps {
   language?: Language;
 }
 
-export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionProps> = ({
+// ⚡ Bolt Performance Optimization:
+// Wrapped ProductivityInsightsSection in React.memo() to prevent unnecessary re-renders of expensive Recharts
+// graphs when unrelated state changes occur in parent components (e.g. DashboardAndTasksView).
+// Expected impact: Eliminates Recharts redraws when parent state updates independently.
+export const ProductivityInsightsSection = React.memo(({
   data,
   language = 'en',
-}) => {
+}: ProductivityInsightsSectionProps) => {
   const [metricTab, setMetricTab] = useState<'both' | 'print' | 'sewing'>('both');
 
   const todayData = data[data.length - 1] || data[0];
@@ -297,4 +301,4 @@ export const ProductivityInsightsSection: React.FC<ProductivityInsightsSectionPr
       </div>
     </div>
   );
-};
+});
