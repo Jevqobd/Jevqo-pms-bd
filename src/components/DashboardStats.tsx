@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Order, ShortageTicket, FactoryLocation } from '../types/erp';
 import { Language } from '../utils/translations';
 import { Building2, Printer, Scissors, Truck, AlertOctagon, DollarSign, Clock } from 'lucide-react';
@@ -16,22 +16,53 @@ interface DashboardStatsProps {
   language?: Language;
 }
 
-export const DashboardStats: React.FC<DashboardStatsProps> = ({
+export const DashboardStats = React.memo(({
   orders,
   shortageTickets,
   onSelectLocation,
   selectedLocation,
   language = 'en',
-}) => {
-  const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
-  const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
-  const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
-  const dispatchedOrders = orders.filter((o) => o.currentLocation === 'dispatched');
-  const openShortages = shortageTickets.filter((t) => t.status !== 'resolved');
+}: DashboardStatsProps) => {
+  // Use a single pass over the orders array to calculate all metrics
+  // reducing complexity from O(7N) to O(N) and preventing unnecessary re-renders.
+  const {
+    headOfficeOrdersCount,
+    printFactoryOrdersCount,
+    sewingFactoryOrdersCount,
+    dispatchedOrdersCount,
+    totalSales,
+    totalAdvances,
+    totalDue,
+  } = useMemo(() => {
+    let head = 0, print = 0, sewing = 0, dispatched = 0;
+    let sales = 0, advances = 0, due = 0;
 
-  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalAdvances = orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
-  const totalDue = orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0);
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      if (o.currentLocation === 'head_office') head++;
+      else if (o.currentLocation === 'print_factory') print++;
+      else if (o.currentLocation === 'sewing_factory') sewing++;
+      else if (o.currentLocation === 'dispatched') dispatched++;
+
+      sales += o.totalAmount || 0;
+      advances += o.advanceAmount || 0;
+      due += o.dueAmount || 0;
+    }
+
+    return {
+      headOfficeOrdersCount: head,
+      printFactoryOrdersCount: print,
+      sewingFactoryOrdersCount: sewing,
+      dispatchedOrdersCount: dispatched,
+      totalSales: sales,
+      totalAdvances: advances,
+      totalDue: due,
+    };
+  }, [orders]);
+
+  const openShortagesCount = useMemo(() =>
+    shortageTickets.filter((t) => t.status !== 'resolved').length
+  , [shortageTickets]);
 
   return (
     <div className="space-y-4">
@@ -54,7 +85,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {headOfficeOrders.length}
+              {headOfficeOrdersCount}
             </span>
             <span className="text-xs text-slate-400">{'orders'}</span>
           </div>
@@ -80,7 +111,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {printFactoryOrders.length}
+              {printFactoryOrdersCount}
             </span>
             <span className="text-xs text-slate-400">{'in production'}</span>
           </div>
@@ -106,7 +137,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {dispatchedOrders.length}
+              {dispatchedOrdersCount}
             </span>
             <span className="text-xs text-slate-400">{'rolls on van'}</span>
           </div>
@@ -132,7 +163,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {sewingFactoryOrders.length}
+              {sewingFactoryOrdersCount}
             </span>
             <span className="text-xs text-slate-400">{'at lines'}</span>
           </div>
@@ -187,13 +218,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
         </div>
 
         <div className={`card-hover flex items-center justify-between p-3.5 rounded-2xl border shadow-lg transition-all ${
-          openShortages.length > 0
+          openShortagesCount > 0
             ? 'bg-rose-950/30 border-rose-800 text-rose-200'
             : 'bg-slate-900/90 border-slate-800 text-slate-300'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${
-              openShortages.length > 0 ? 'bg-rose-900/60 text-rose-400 border border-rose-700' : 'bg-slate-800 text-slate-400'
+              openShortagesCount > 0 ? 'bg-rose-900/60 text-rose-400 border border-rose-700' : 'bg-slate-800 text-slate-400'
             }`}>
               <AlertOctagon className="w-4 h-4" />
             </div>
@@ -202,17 +233,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Active Re-print Loop'}
               </div>
               <div className="text-base font-black font-mono">
-                {openShortages.length} {`Shortage Ticket${openShortages.length !== 1 ? 's' : ''}`}
+                {openShortagesCount} {`Shortage Ticket${openShortagesCount !== 1 ? 's' : ''}`}
               </div>
             </div>
           </div>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${
-            openShortages.length > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
+            openShortagesCount > 0 ? 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse' : 'bg-slate-800 text-slate-400 border-slate-700'
           }`}>
-            {openShortages.length > 0 ? ('Priority Alert') : ('No defects')}
+            {openShortagesCount > 0 ? ('Priority Alert') : ('No defects')}
           </span>
         </div>
       </div>
     </div>
   );
-};
+});
