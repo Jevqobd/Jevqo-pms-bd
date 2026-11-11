@@ -1,0 +1,3 @@
+## 2026-11-11 - [CI Build Failure Troubleshooting]
+**Learning:** In a codebase that relies heavily on Vite (specifically v8+), there's a risk of peer dependency conflicts if the locked version of `esbuild` falls below `^0.27.0`. Furthermore, build tools such as Vite and TypeScript expect all statically imported configuration files (like `firebase-applet-config.json`) to exist locally.
+**Action:** When bumping Vite or related tooling, double check that `esbuild` is bumped accordingly to satisfy peer dependencies in CI. For required configuration files missing from source control, add dummy stubs during CI build runs or commit generic templates alongside `.gitignore`.
