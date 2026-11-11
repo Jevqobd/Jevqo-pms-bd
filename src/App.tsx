@@ -1415,7 +1415,7 @@ export default function App() {
                 orders={orders}
                 shortageTickets={shortageTickets}
                 selectedLocation={selectedLocation}
-                onSelectLocation={(loc) => setSelectedLocation(loc)}
+                onSelectLocation={setSelectedLocation}
                 language={language}
               />
               <KanbanBoard

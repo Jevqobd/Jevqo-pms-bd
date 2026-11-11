@@ -1,0 +1,3 @@
+## 2025-02-12 - [DashboardStats O(n) array operation consolidation]
+**Learning:** Consolidating 7 `.filter` and `.reduce` operations in a single render pass of a React component improves calculation efficiency dramatically, especially for O(n) iterations. Furthermore, stabilizing prop functions such as `(loc) => setSelectedLocation(loc)` into `setSelectedLocation` is essential to allow `React.memo()` to successfully prevent re-renders.
+**Action:** When finding array iterations, always try to consolidate them using a single for-loop wrapped in `useMemo`. Also, check prop declarations to make sure `React.memo()` optimizations won't break by unstablized inner-functions.
