@@ -16,22 +16,50 @@ interface DashboardStatsProps {
   language?: Language;
 }
 
-export const DashboardStats: React.FC<DashboardStatsProps> = ({
+export const DashboardStats = React.memo(({
   orders,
   shortageTickets,
   onSelectLocation,
   selectedLocation,
   language = 'en',
-}) => {
-  const headOfficeOrders = orders.filter((o) => o.currentLocation === 'head_office');
-  const printFactoryOrders = orders.filter((o) => o.currentLocation === 'print_factory');
-  const sewingFactoryOrders = orders.filter((o) => o.currentLocation === 'sewing_factory');
-  const dispatchedOrders = orders.filter((o) => o.currentLocation === 'dispatched');
-  const openShortages = shortageTickets.filter((t) => t.status !== 'resolved');
+}: DashboardStatsProps) => {
+  // ⚡ Bolt: Consolidated 7 array operations into a single O(n) pass
+  const stats = React.useMemo(() => {
+    let headOffice = 0;
+    let printFactory = 0;
+    let sewingFactory = 0;
+    let dispatched = 0;
+    let totalSales = 0;
+    let totalAdvances = 0;
+    let totalDue = 0;
 
-  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalAdvances = orders.reduce((sum, o) => sum + (o.advanceAmount || 0), 0);
-  const totalDue = orders.reduce((sum, o) => sum + (o.dueAmount || 0), 0);
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      if (o.currentLocation === 'head_office') headOffice++;
+      else if (o.currentLocation === 'print_factory') printFactory++;
+      else if (o.currentLocation === 'sewing_factory') sewingFactory++;
+      else if (o.currentLocation === 'dispatched') dispatched++;
+
+      totalSales += o.totalAmount || 0;
+      totalAdvances += o.advanceAmount || 0;
+      totalDue += o.dueAmount || 0;
+    }
+
+    return {
+      headOfficeCount: headOffice,
+      printFactoryCount: printFactory,
+      sewingFactoryCount: sewingFactory,
+      dispatchedCount: dispatched,
+      totalSales,
+      totalAdvances,
+      totalDue,
+    };
+  }, [orders]);
+
+  const openShortages = React.useMemo(
+    () => shortageTickets.filter((t) => t.status !== 'resolved'),
+    [shortageTickets]
+  );
 
   return (
     <div className="space-y-4">
@@ -54,7 +82,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {headOfficeOrders.length}
+              {stats.headOfficeCount}
             </span>
             <span className="text-xs text-slate-400">{'orders'}</span>
           </div>
@@ -80,7 +108,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {printFactoryOrders.length}
+              {stats.printFactoryCount}
             </span>
             <span className="text-xs text-slate-400">{'in production'}</span>
           </div>
@@ -106,7 +134,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {dispatchedOrders.length}
+              {stats.dispatchedCount}
             </span>
             <span className="text-xs text-slate-400">{'rolls on van'}</span>
           </div>
@@ -132,7 +160,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-white font-mono">
-              {sewingFactoryOrders.length}
+              {stats.sewingFactoryCount}
             </span>
             <span className="text-xs text-slate-400">{'at lines'}</span>
           </div>
@@ -154,12 +182,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Total Pipeline Sales'}
               </div>
               <div className="text-base font-black text-white font-mono">
-                ৳{totalSales.toLocaleString()}
+                ৳{stats.totalSales.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
-            <span className="text-emerald-400 font-bold font-mono">৳{totalAdvances.toLocaleString()}</span>
+            <span className="text-emerald-400 font-bold font-mono">৳{stats.totalAdvances.toLocaleString()}</span>
             <span className="text-slate-400 block text-[10px]">{'collected'}</span>
           </div>
         </div>
@@ -174,13 +202,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
                 {'Due Before Delivery'}
               </div>
               <div className="text-base font-black text-white font-mono">
-                ৳{totalDue.toLocaleString()}
+                ৳{stats.totalDue.toLocaleString()}
               </div>
             </div>
           </div>
           <div className="text-right text-xs">
             <span className="text-amber-400 font-bold font-mono">
-              {Math.round((totalAdvances / (totalSales || 1)) * 100)}%
+              {Math.round((stats.totalAdvances / (stats.totalSales || 1)) * 100)}%
             </span>
             <span className="text-slate-400 block text-[10px]">{'paid ratio'}</span>
           </div>
@@ -215,4 +243,4 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       </div>
     </div>
   );
-};
+});
